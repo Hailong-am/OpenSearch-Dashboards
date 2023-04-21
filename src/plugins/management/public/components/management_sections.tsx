@@ -71,6 +71,22 @@ const opensearchDashboardsTip = i18n.translate('management.sections.opensearchDa
   defaultMessage: 'Customize OpenSearch Dashboards and manage saved objects',
 });
 
+const indexManagementTitile = i18n.translate('management.sections.indexManagementTitile', {
+  defaultMessage: 'Index Management',
+});
+
+const indexManagementTip = i18n.translate('management.sections.indexManagementTip', {
+  defaultMessage: 'Manage how to operate on your index',
+});
+
+const snapshotManagementTitile = i18n.translate('management.sections.snapshotManagementTitile', {
+  defaultMessage: 'Snapshot Management',
+});
+
+const snapshotManagementTip = i18n.translate('management.sections.snapshotManagementTip', {
+  defaultMessage: 'Manage snapshot of indexes',
+});
+
 const stackTitle = i18n.translate('management.sections.stackTitle', {
   defaultMessage: 'Stack',
 });
@@ -114,6 +130,20 @@ export const OpenSearchDashboardsSection = {
   order: 4,
 };
 
+export const IndexManagementSection = {
+  id: ManagementSectionId.IndexManagement,
+  title: indexManagementTitile,
+  tip: indexManagementTip,
+  order: 5,
+};
+
+export const SnapshotManagementSection = {
+  id: ManagementSectionId.SnapshotManagement,
+  title: snapshotManagementTitile,
+  tip: snapshotManagementTip,
+  order: 6,
+};
+
 export const StackSection = {
   id: ManagementSectionId.Stack,
   title: stackTitle,
@@ -128,4 +158,6 @@ export const managementSections = [
   SecuritySection,
   OpenSearchDashboardsSection,
   StackSection,
+  IndexManagementSection,
+  SnapshotManagementSection,
 ];

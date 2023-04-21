@@ -36,6 +36,8 @@ import {
   SecuritySection,
   OpenSearchDashboardsSection,
   StackSection,
+  IndexManagementSection,
+  SnapshotManagementSection,
 } from './components/management_sections';
 
 import {
@@ -66,6 +68,8 @@ export class ManagementSectionsService {
       security: this.registerSection(SecuritySection),
       opensearchDashboards: this.registerSection(OpenSearchDashboardsSection),
       stack: this.registerSection(StackSection),
+      indexManagement: this.registerSection(IndexManagementSection),
+      snapshotManagement: this.registerSection(SnapshotManagementSection),
     };
   }
   private sections: Map<ManagementSectionId | string, ManagementSection> = new Map();

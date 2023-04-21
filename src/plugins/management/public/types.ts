@@ -44,6 +44,8 @@ export interface DefinedSections {
   security: ManagementSection;
   opensearchDashboards: ManagementSection;
   stack: ManagementSection;
+  indexManagement: ManagementSection;
+  snapshotManagement: ManagementSection;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -72,6 +74,8 @@ export enum ManagementSectionId {
   InsightsAndAlerting = 'insightsAndAlerting',
   Security = 'security',
   OpenSearchDashboards = 'opensearch-dashboards',
+  IndexManagement = 'index-management',
+  SnapshotManagement = 'snaphost-management',
   Stack = 'stack',
 }
 
