@@ -66,11 +66,12 @@ export class ManagementPlugin implements Plugin<ManagementSetup, ManagementStart
   public setup(core: CoreSetup, { home }: ManagementSetupDependencies) {
     const opensearchDashboardsVersion = this.initializerContext.env.packageInfo.version;
 
+    // home page
     if (home) {
       home.featureCatalogue.register({
         id: 'stack-management',
         title: i18n.translate('management.stackManagement.managementLabel', {
-          defaultMessage: 'Stack Management',
+          defaultMessage: 'Control Center',
         }),
         description: i18n.translate('management.stackManagement.managementDescription', {
           defaultMessage: 'Your center console for managing the OpenSearch Stack.',
@@ -83,10 +84,11 @@ export class ManagementPlugin implements Plugin<ManagementSetup, ManagementStart
       });
     }
 
+    // navigation
     core.application.register({
       id: MANAGEMENT_APP_ID,
       title: i18n.translate('management.stackManagement.title', {
-        defaultMessage: 'Stack Management',
+        defaultMessage: 'Control Center',
       }),
       order: 9040,
       icon: '/plugins/home/assets/logos/opensearch_mark_default.svg',
