@@ -35,7 +35,12 @@ export function plugin(initializerContext: PluginInitializerContext) {
   return new ManagementPlugin(initializerContext);
 }
 
-export { RegisterManagementAppArgs, ManagementSection, ManagementApp } from './utils';
+export {
+  RegisterManagementAppArgs,
+  ManagementSection,
+  ManagementApp,
+  MANAGEMENT_BREADCRUMB,
+} from './utils';
 
 export {
   ManagementAppMountParams,
