@@ -70,7 +70,7 @@ export class ManagementPlugin implements Plugin<ManagementSetup, ManagementStart
       home.featureCatalogue.register({
         id: 'stack-management',
         title: i18n.translate('management.stackManagement.managementLabel', {
-          defaultMessage: 'Stack Management',
+          defaultMessage: 'Dashboard Management',
         }),
         description: i18n.translate('management.stackManagement.managementDescription', {
           defaultMessage: 'Your center console for managing the OpenSearch Stack.',
@@ -86,9 +86,9 @@ export class ManagementPlugin implements Plugin<ManagementSetup, ManagementStart
     core.application.register({
       id: MANAGEMENT_APP_ID,
       title: i18n.translate('management.stackManagement.title', {
-        defaultMessage: 'Stack Management',
+        defaultMessage: 'Dashboard Management',
       }),
-      order: 9040,
+      order: 9030,
       icon: '/plugins/home/assets/logos/opensearch_mark_default.svg',
       category: DEFAULT_APP_CATEGORIES.management,
       updater$: this.appUpdater,

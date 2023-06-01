@@ -79,7 +79,7 @@ export class DevToolsPlugin implements Plugin<DevToolsSetup, void> {
       }),
       updater$: this.appStateUpdater,
       icon: '/plugins/home/public/assets/logos/opensearch_mark_default.svg',
-      order: 9010,
+      order: 9070,
       category: DEFAULT_APP_CATEGORIES.management,
       mount: async (params: AppMountParameters) => {
         const { element, history } = params;
