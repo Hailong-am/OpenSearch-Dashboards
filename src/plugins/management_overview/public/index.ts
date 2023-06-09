@@ -3,6 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ControlCenterOverViewPlugin } from './plugin';
+import { ManagementOverViewPlugin } from './plugin';
 
-export const plugin = () => new ControlCenterOverViewPlugin();
+export const plugin = () => new ManagementOverViewPlugin();

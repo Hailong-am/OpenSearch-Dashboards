@@ -4,5 +4,5 @@
   "server": true,
   "ui": true,
   "optionalPlugins": ["home"],
-  "requiredBundles": ["opensearchDashboardsReact", "opensearchDashboardsUtils", "home"]
+  "requiredBundles": ["opensearchDashboardsReact", "opensearchDashboardsUtils"]
 }

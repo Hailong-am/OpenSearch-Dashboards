@@ -40,6 +40,7 @@ import { UrlForwardingSetup } from '../../url_forwarding/public';
 import { CreateDevToolArgs, DevToolApp, createDevToolApp } from './dev_tool';
 
 import './index.scss';
+import { PluginPages } from '../../../core/types';
 
 export interface DevToolsSetupDependencies {
   dataSource?: DataSourcePluginStart;
@@ -112,6 +113,16 @@ export class DevToolsPlugin implements Plugin<DevToolsSetup, void> {
   public start() {
     if (this.getSortedDevTools().length === 0) {
       this.appStateUpdater.next(() => ({ navLinkStatus: AppNavLinkStatus.hidden }));
+    } else {
+      const features: PluginPages[] = this.getSortedDevTools().map((devApp) => {
+        return {
+          title: devApp.title,
+          url: `#/${devApp.id}`,
+          order: devApp.order,
+        };
+      });
+
+      this.appStateUpdater.next(() => ({ pages: features }));
     }
   }
 

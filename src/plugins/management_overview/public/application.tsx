@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CoreStart, ScopedHistory } from 'opensearch-dashboards/public';
 import ReactDOM from 'react-dom';
 import { I18nProvider } from '@osd/i18n/react';
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   EuiFlexGrid,
   EuiFlexItem,
@@ -17,85 +16,108 @@ import {
   EuiSpacer,
   EuiTitle,
 } from '@elastic/eui';
+import { useObservable } from 'react-use';
+import { i18n } from '@osd/i18n';
+import { App, ApplicationStart, AppStatus, CoreStart } from '../../../core/public';
+import { PluginPages } from '../../../core/types';
 
-export interface ControlCenterOverviewProps {
-  features?: [];
+type OverviewCardApp = Pick<App, 'title' | 'pages' | 'order' | 'id'>;
+
+export interface ManagementOverviewProps {
+  application: ApplicationStart;
 }
 
 export interface OverviewCardProps {
   title: string;
-  features?: string[];
+  pages: PluginPages[];
+  onClick: (url: string) => void;
 }
 
 function OverviewCard(props: OverviewCardProps) {
-  const { title, features } = props;
+  const { title, pages, onClick } = props;
+
   return (
     <EuiPanel>
       <EuiTitle size="s">
         <h5>{title}</h5>
       </EuiTitle>
-      <EuiHorizontalRule />
-      <EuiListGroup>
-        {features?.map((feature) => (
-          <EuiListGroupItem onClick={() => {}} label={feature} color="primary" size="m" />
+      <EuiHorizontalRule margin="s" />
+      <EuiListGroup gutterSize="none" size="s">
+        {pages.map((page) => (
+          <EuiListGroupItem
+            key={page.title}
+            onClick={() => onClick(page.url)}
+            label={page.title}
+            color="primary"
+            size="s"
+          />
         ))}
       </EuiListGroup>
     </EuiPanel>
   );
 }
 
-function ControlCenterOverviewWrapper(props: ControlCenterOverviewProps) {
+function ManagementOverviewWrapper(props: ManagementOverviewProps) {
+  const { application } = props;
+
+  const applications = useObservable(application.applications$);
+  const overviewApp = useMemo(() => {
+    if (applications) {
+      const apps = [] as OverviewCardApp[];
+      applications.forEach((app) => {
+        if (app.pages && app.pages.length > 0 && app.status === AppStatus.accessible) {
+          apps.push({
+            title: app.title,
+            order: app.order,
+            id: app.id,
+            pages: app.pages,
+          });
+        }
+      });
+
+      apps.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      return apps;
+    }
+  }, [applications]);
+
+  const onClick = (appId: string) => {
+    return (url: string) => {
+      const pageUrl = application.getUrlForApp(appId, { path: url });
+      application.navigateToUrl(pageUrl);
+    };
+  };
+
+  const title = i18n.translate('core.ui.managementNavList.label', {
+    defaultMessage: 'Management',
+  });
+
   return (
-    <EuiPanel>
+    <EuiPanel style={{ padding: '20px' }}>
       <EuiTitle size="l">
-        <h1>Control Center</h1>
+        <h1>{title}</h1>
       </EuiTitle>
       <EuiSpacer />
-      <EuiFlexGrid columns={2}>
-        <EuiFlexItem>
-          <OverviewCard title="Index Management" features={['Indexes']} />
-        </EuiFlexItem>
-        <EuiFlexItem>
-          <OverviewCard title="Snapshot Management" features={['Polices']} />
-        </EuiFlexItem>
-        <EuiFlexItem>
-          <OverviewCard title="Dashboard Management" />
-        </EuiFlexItem>
-        <EuiFlexItem>
-          <OverviewCard title="Security" />
-        </EuiFlexItem>
-        <EuiFlexItem>
-          <OverviewCard title="Notifications" />
-        </EuiFlexItem>
-        <EuiFlexItem>
-          <OverviewCard title="Dev tools" />
-        </EuiFlexItem>
+      <EuiFlexGrid columns={3}>
+        {overviewApp?.map((app) => (
+          <EuiFlexItem key={app.title}>
+            <OverviewCard title={app.title} pages={app.pages || []} onClick={onClick(app.id)} />
+          </EuiFlexItem>
+        ))}
       </EuiFlexGrid>
     </EuiPanel>
   );
 }
 
-export function renderApp(
-  { application, chrome, savedObjects, notifications }: CoreStart,
-  element: HTMLElement,
-  history: ScopedHistory
-) {
+export function renderApp({ application, chrome }: CoreStart, element: HTMLElement) {
   ReactDOM.render(
     <I18nProvider>
-      <ControlCenterOverviewWrapper />
+      <ManagementOverviewWrapper application={application} />
     </I18nProvider>,
     element
   );
 
-  // dispatch synthetic hash change event to update hash history objects
-  // this is necessary because hash updates triggered by using popState won't trigger this event naturally.
-  const unlisten = history.listen(() => {
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
-  });
-
   return () => {
     chrome.docTitle.reset();
     ReactDOM.unmountComponentAtNode(element);
-    unlisten();
   };
 }

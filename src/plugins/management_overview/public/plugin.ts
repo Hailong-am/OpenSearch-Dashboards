@@ -8,24 +8,39 @@ import {
   AppMountParameters,
   CoreSetup,
   Plugin,
-  DEFAULT_APP_CATEGORIES, CoreStart,
+  DEFAULT_APP_CATEGORIES,
+  CoreStart,
 } from '../../../core/public';
+import { FeatureCatalogueCategory, HomePublicPluginSetup } from '../../home/public';
+import { MANAGEMENT_LANDING_PLUGIN_ID } from '../common/constants';
+
+interface ManagementOverviewSetupDependencies {
+  home?: HomePublicPluginSetup;
+}
 
 /** @public */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface ManagementOverViewPluginSetup {}
-
-/** @public */
-export type ManagementOverViewPluginStart = ManagementOverViewPluginSetup;
-
-/** @public */
-export class ManagementOverViewPlugin
-  implements Plugin<ManagementOverViewPluginSetup, ManagementOverViewPluginStart> {
-  public setup(coreSetup: CoreSetup): ManagementOverViewPluginSetup {
+export class ManagementOverViewPlugin implements Plugin<{}, {}> {
+  public setup(coreSetup: CoreSetup, { home }: ManagementOverviewSetupDependencies): {} {
     const { application, getStartServices } = coreSetup;
 
+    if (home) {
+      home.featureCatalogue.register({
+        id: MANAGEMENT_LANDING_PLUGIN_ID,
+        title: i18n.translate('management.stackManagement.managementLabel', {
+          defaultMessage: 'Management',
+        }),
+        description: i18n.translate('management.stackManagement.managementDescription', {
+          defaultMessage: 'Your center console for managing the OpenSearch Stack.',
+        }),
+        icon: 'managementApp',
+        path: `/app/${MANAGEMENT_LANDING_PLUGIN_ID}`,
+        showOnHomePage: false,
+        category: FeatureCatalogueCategory.ADMIN,
+      });
+    }
+
     application.register({
-      id: 'management_overview',
+      id: MANAGEMENT_LANDING_PLUGIN_ID,
       title: i18n.translate('management.overviewTitle', {
         defaultMessage: 'Overview',
       }),
@@ -33,18 +48,18 @@ export class ManagementOverViewPlugin
       order: 9000,
       category: DEFAULT_APP_CATEGORIES.management,
       mount: async (params: AppMountParameters) => {
-        const { element, history } = params;
+        const { element } = params;
         const [core] = await getStartServices();
 
         const { renderApp } = await import('./application');
-        return renderApp(core, element, history);
+        return renderApp(core, element);
       },
     });
 
     return {};
   }
 
-  public start(core: CoreStart): ManagementOverViewPluginStart {
+  public start(core: CoreStart): {} {
     return {};
   }
 }

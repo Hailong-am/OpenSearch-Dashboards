@@ -49,6 +49,7 @@ import {
   ManagementSectionsService,
   getSectionsServiceStartPrivate,
 } from './management_sections_service';
+import { PluginPages } from '../../../core/types';
 
 interface ManagementSetupDependencies {
   home?: HomePublicPluginSetup;
@@ -66,22 +67,22 @@ export class ManagementPlugin implements Plugin<ManagementSetup, ManagementStart
   public setup(core: CoreSetup, { home }: ManagementSetupDependencies) {
     const opensearchDashboardsVersion = this.initializerContext.env.packageInfo.version;
 
-    if (home) {
-      home.featureCatalogue.register({
-        id: 'stack-management',
-        title: i18n.translate('management.stackManagement.managementLabel', {
-          defaultMessage: 'Dashboard Management',
-        }),
-        description: i18n.translate('management.stackManagement.managementDescription', {
-          defaultMessage: 'Your center console for managing the OpenSearch Stack.',
-        }),
-        icon: 'managementApp',
-        path: '/app/management',
-        showOnHomePage: false,
-        category: FeatureCatalogueCategory.ADMIN,
-        visible: () => this.hasAnyEnabledApps,
-      });
-    }
+    // if (home) {
+    //   home.featureCatalogue.register({
+    //     id: 'stack-management',
+    //     title: i18n.translate('management.stackManagement.managementLabel', {
+    //       defaultMessage: 'Dashboard Management',
+    //     }),
+    //     description: i18n.translate('management.stackManagement.managementDescription', {
+    //       defaultMessage: 'Your center console for managing the OpenSearch Stack.',
+    //     }),
+    //     icon: 'managementApp',
+    //     path: '/app/management',
+    //     showOnHomePage: false,
+    //     category: FeatureCatalogueCategory.ADMIN,
+    //     visible: () => this.hasAnyEnabledApps,
+    //   });
+    // }
 
     core.application.register({
       id: MANAGEMENT_APP_ID,
@@ -114,6 +115,26 @@ export class ManagementPlugin implements Plugin<ManagementSetup, ManagementStart
     this.hasAnyEnabledApps = getSectionsServiceStartPrivate()
       .getSectionsEnabled()
       .some((section) => section.getAppsEnabled().length > 0);
+
+    const enabledSections = getSectionsServiceStartPrivate().getSectionsEnabled();
+    const features: PluginPages[] = enabledSections
+      .map((section) => section.apps)
+      .flat()
+      .map((app) => {
+        return {
+          title: app.title,
+          url: app.basePath,
+          order: app.order,
+        };
+      });
+
+    if (features) {
+      this.appUpdater.next(() => {
+        return {
+          pages: features,
+        };
+      });
+    }
 
     if (!this.hasAnyEnabledApps) {
       this.appUpdater.next(() => {

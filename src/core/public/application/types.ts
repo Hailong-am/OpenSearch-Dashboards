@@ -45,7 +45,7 @@ import { OverlayStart } from '../overlays';
 import { PluginOpaqueId } from '../plugins';
 import { IUiSettingsClient } from '../ui_settings';
 import { SavedObjectsStart } from '../saved_objects';
-import { AppCategory } from '../../types';
+import { AppCategory, PluginPages } from '../../types';
 import { ScopedHistory } from './scoped_history';
 
 /**
@@ -93,7 +93,10 @@ export enum AppNavLinkStatus {
  * Defines the list of fields that can be updated via an {@link AppUpdater}.
  * @public
  */
-export type AppUpdatableFields = Pick<App, 'status' | 'navLinkStatus' | 'tooltip' | 'defaultPath'>;
+export type AppUpdatableFields = Pick<
+  App,
+  'status' | 'navLinkStatus' | 'tooltip' | 'defaultPath' | 'pages'
+>;
 
 /**
  * Updater for applications.
@@ -122,6 +125,12 @@ export interface App<HistoryLocationState = unknown> {
    * See DEFAULT_APP_CATEGORIES for more reference
    */
   category?: AppCategory;
+
+  /**
+   * The pages definition of the plugin app
+   * See {@link PluginPages}
+   */
+  pages?: PluginPages[];
 
   /**
    * The initial status of the application.
