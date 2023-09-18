@@ -319,6 +319,12 @@ export {
   exportSavedObjectsToStream,
   importSavedObjectsFromStream,
   resolveSavedObjectsImportErrors,
+  SavedObjectsShareObjects,
+  SavedObjectsAddToWorkspacesOptions,
+  SavedObjectsAddToWorkspacesResponse,
+  SavedObjectsDeleteByWorkspaceOptions,
+  SavedObjectsDeleteFromWorkspacesOptions,
+  SavedObjectsDeleteFromWorkspacesResponse,
 } from './saved_objects';
 
 export {

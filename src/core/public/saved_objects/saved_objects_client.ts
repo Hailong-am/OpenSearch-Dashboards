@@ -111,6 +111,7 @@ export interface SavedObjectsBatchResponse<T = unknown> {
 export interface SavedObjectsDeleteOptions {
   /** Force deletion of an object that exists in multiple namespaces */
   force?: boolean;
+  workspace?: string;
 }
 
 /**
@@ -309,6 +310,7 @@ export class SavedObjectsClient {
 
     const query = {
       force: !!options?.force,
+      workspace: this._getCurrentWorkspace(),
     };
 
     return this.savedObjectsFetch(this.getPath([type, id]), { method: 'DELETE', query });

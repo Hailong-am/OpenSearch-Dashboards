@@ -8,12 +8,13 @@ import type {
   SavedObjectsClientContract,
   CoreSetup,
   WorkspaceAttribute,
-  ISavedObjectsRepository,
+  SavedObjectsServiceStart,
 } from '../../../core/server';
 import { WORKSPACE_TYPE } from '../../../core/server';
 import { IWorkspaceDBImpl, WorkspaceFindOptions, IResponse, IRequestDetail } from './types';
 import { workspace } from './saved_objects';
 import { generateRandomId } from './utils';
+import { WORKSPACE_SAVED_OBJECTS_CLIENT_WRAPPER_ID } from '../common/constants';
 
 const WORKSPACE_ID_SIZE = 6;
 
@@ -24,9 +25,18 @@ const DUPLICATE_WORKSPACE_NAME_ERROR = i18n.translate('workspace.duplicate.name.
 export class WorkspaceClientWithSavedObject implements IWorkspaceDBImpl {
   private setupDep: CoreSetup;
 
-  private internalSavedObjectsRepository?: ISavedObjectsRepository;
-  setInternalRepository(repository: ISavedObjectsRepository) {
-    this.internalSavedObjectsRepository = repository;
+  private savedObjects?: SavedObjectsServiceStart;
+
+  setSavedObjectes(savedObjects: SavedObjectsServiceStart) {
+    this.savedObjects = savedObjects;
+  }
+
+  private getScopeClientWithoutPermisson(
+    requestDetail: IRequestDetail
+  ): SavedObjectsClientContract | undefined {
+    return this.savedObjects?.getScopedClient(requestDetail.request, {
+      excludedWrappers: [WORKSPACE_SAVED_OBJECTS_CLIENT_WRAPPER_ID],
+    });
   }
 
   constructor(core: CoreSetup) {
@@ -63,7 +73,7 @@ export class WorkspaceClientWithSavedObject implements IWorkspaceDBImpl {
       const attributes = payload;
       const id = generateRandomId(WORKSPACE_ID_SIZE);
       const client = this.getSavedObjectClientsFromRequestDetail(requestDetail);
-      const existingWorkspaceRes = await this.internalSavedObjectsRepository?.find({
+      const existingWorkspaceRes = await this.getScopeClientWithoutPermisson(requestDetail)?.find({
         type: WORKSPACE_TYPE,
         search: attributes.name,
         searchFields: ['name'],
@@ -148,12 +158,14 @@ export class WorkspaceClientWithSavedObject implements IWorkspaceDBImpl {
       const client = this.getSavedObjectClientsFromRequestDetail(requestDetail);
       const workspaceInDB: SavedObject<WorkspaceAttribute> = await client.get(WORKSPACE_TYPE, id);
       if (workspaceInDB.attributes.name !== attributes.name) {
-        const existingWorkspaceRes = await this.internalSavedObjectsRepository?.find({
-          type: WORKSPACE_TYPE,
-          search: attributes.name,
-          searchFields: ['name'],
-          fields: ['_id'],
-        });
+        const existingWorkspaceRes = await this.getScopeClientWithoutPermisson(requestDetail)?.find(
+          {
+            type: WORKSPACE_TYPE,
+            search: attributes.name,
+            searchFields: ['name'],
+            fields: ['_id'],
+          }
+        );
         if (existingWorkspaceRes && existingWorkspaceRes.total > 0) {
           throw new Error(DUPLICATE_WORKSPACE_NAME_ERROR);
         }

@@ -42,13 +42,17 @@ export const registerDeleteRoute = (router: IRouter) => {
         }),
         query: schema.object({
           force: schema.maybe(schema.boolean()),
+          workspace: schema.maybe(schema.string()),
         }),
       },
     },
     router.handleLegacyErrors(async (context, req, res) => {
       const { type, id } = req.params;
-      const { force } = req.query;
-      const result = await context.core.savedObjects.client.delete(type, id, { force });
+      const { force, workspace } = req.query;
+      const result = await context.core.savedObjects.client.delete(type, id, {
+        force,
+        workspaces: workspace ? [workspace] : undefined,
+      });
       return res.ok({ body: result });
     })
   );
