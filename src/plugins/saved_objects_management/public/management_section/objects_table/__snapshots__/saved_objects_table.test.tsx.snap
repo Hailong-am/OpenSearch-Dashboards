@@ -200,12 +200,22 @@ exports[`SavedObjectsTable export should allow the user to choose when exporting
 exports[`SavedObjectsTable should render normally 1`] = `
 <EuiPageContent
   horizontalPosition="center"
+  style={
+    Object {
+      "marginTop": "40px",
+      "maxWidth": "75%",
+    }
+  }
 >
   <Header
     filteredCount={4}
+    hideImport={false}
+    objectCount={4}
+    onDuplicate={[Function]}
     onExportAll={[Function]}
     onImport={[Function]}
     onRefresh={[Function]}
+    showDuplicateAll={false}
   />
   <EuiSpacer
     size="xs"
@@ -257,13 +267,16 @@ exports[`SavedObjectsTable should render normally 1`] = `
           "has": [MockFunction],
         }
       }
+      availableWorkspaces={Array []}
       basePath={
         BasePath {
           "basePath": "",
           "get": [Function],
+          "getBasePath": [Function],
           "prepend": [Function],
           "remove": [Function],
           "serverBasePath": "",
+          "workspaceBasePath": "",
         }
       }
       canDelete={false}
@@ -314,10 +327,10 @@ exports[`SavedObjectsTable should render normally 1`] = `
           Object {
             "id": "1",
             "meta": Object {
-              "editUrl": "#/management/opensearch-dashboards/indexPatterns/patterns/1",
+              "editUrl": "#/indexPatterns/patterns/1",
               "icon": "indexPatternApp",
               "inAppUrl": Object {
-                "path": "/management/opensearch-dashboards/indexPatterns/patterns/1",
+                "path": "/indexPatterns/patterns/1",
                 "uiCapabilitiesPath": "management.opensearchDashboards.indexPatterns",
               },
               "title": "MyIndexPattern*",
@@ -327,7 +340,7 @@ exports[`SavedObjectsTable should render normally 1`] = `
           Object {
             "id": "2",
             "meta": Object {
-              "editUrl": "/management/opensearch-dashboards/objects/savedSearches/2",
+              "editUrl": "/objects/savedSearches/2",
               "icon": "search",
               "inAppUrl": Object {
                 "path": "/discover/2",
@@ -340,7 +353,7 @@ exports[`SavedObjectsTable should render normally 1`] = `
           Object {
             "id": "3",
             "meta": Object {
-              "editUrl": "/management/opensearch-dashboards/objects/savedDashboards/3",
+              "editUrl": "/objects/savedDashboards/3",
               "icon": "dashboardApp",
               "inAppUrl": Object {
                 "path": "/dashboard/3",
@@ -353,7 +366,7 @@ exports[`SavedObjectsTable should render normally 1`] = `
           Object {
             "id": "4",
             "meta": Object {
-              "editUrl": "/management/opensearch-dashboards/objects/savedVisualizations/4",
+              "editUrl": "/objects/savedVisualizations/4",
               "icon": "visualizeApp",
               "inAppUrl": Object {
                 "path": "/edit/4",
@@ -367,6 +380,8 @@ exports[`SavedObjectsTable should render normally 1`] = `
       }
       onActionRefresh={[Function]}
       onDelete={[Function]}
+      onDuplicateSelected={[Function]}
+      onDuplicateSingle={[Function]}
       onExport={[Function]}
       onQueryChange={[Function]}
       onShowRelationships={[Function]}
@@ -379,6 +394,7 @@ exports[`SavedObjectsTable should render normally 1`] = `
           "onSelectionChange": [Function],
         }
       }
+      showDuplicate={false}
       totalItemCount={4}
     />
   </RedirectAppLinks>

@@ -48,6 +48,7 @@ import {
   notificationServiceMock,
   savedObjectsServiceMock,
   applicationServiceMock,
+  workspacesServiceMock,
 } from '../../../../../core/public/mocks';
 import { dataPluginMock } from '../../../../data/public/mocks';
 import { serviceRegistryMock } from '../../services/service_registry.mock';
@@ -102,6 +103,7 @@ describe('SavedObjectsTable', () => {
   let notifications: ReturnType<typeof notificationServiceMock.createStartContract>;
   let savedObjects: ReturnType<typeof savedObjectsServiceMock.createStartContract>;
   let search: ReturnType<typeof dataPluginMock.createStartContract>['search'];
+  let workspaces: ReturnType<typeof workspacesServiceMock.createStartContract>;
 
   const shallowRender = (overrides: Partial<SavedObjectsTableProps> = {}) => {
     return (shallowWithI18nProvider(
@@ -121,6 +123,7 @@ describe('SavedObjectsTable', () => {
     notifications = notificationServiceMock.createStartContract();
     savedObjects = savedObjectsServiceMock.createStartContract();
     search = dataPluginMock.createStartContract().search;
+    workspaces = workspacesServiceMock.createStartContract();
 
     const applications = applicationServiceMock.createStartContract();
     applications.capabilities = {
@@ -154,6 +157,7 @@ describe('SavedObjectsTable', () => {
       savedObjectsClient: savedObjects.client,
       indexPatterns: dataPluginMock.createStartContract().indexPatterns,
       http,
+      workspaces,
       overlays,
       notifications,
       applications,
@@ -172,9 +176,9 @@ describe('SavedObjectsTable', () => {
           meta: {
             title: `MyIndexPattern*`,
             icon: 'indexPatternApp',
-            editUrl: '#/management/opensearch-dashboards/indexPatterns/patterns/1',
+            editUrl: '#/indexPatterns/patterns/1',
             inAppUrl: {
-              path: '/management/opensearch-dashboards/indexPatterns/patterns/1',
+              path: '/indexPatterns/patterns/1',
               uiCapabilitiesPath: 'management.opensearchDashboards.indexPatterns',
             },
           },
@@ -185,7 +189,7 @@ describe('SavedObjectsTable', () => {
           meta: {
             title: `MySearch`,
             icon: 'search',
-            editUrl: '/management/opensearch-dashboards/objects/savedSearches/2',
+            editUrl: '/objects/savedSearches/2',
             inAppUrl: {
               path: '/discover/2',
               uiCapabilitiesPath: 'discover.show',
@@ -198,7 +202,7 @@ describe('SavedObjectsTable', () => {
           meta: {
             title: `MyDashboard`,
             icon: 'dashboardApp',
-            editUrl: '/management/opensearch-dashboards/objects/savedDashboards/3',
+            editUrl: '/objects/savedDashboards/3',
             inAppUrl: {
               path: '/dashboard/3',
               uiCapabilitiesPath: 'dashboard.show',
@@ -211,7 +215,7 @@ describe('SavedObjectsTable', () => {
           meta: {
             title: `MyViz`,
             icon: 'visualizeApp',
-            editUrl: '/management/opensearch-dashboards/objects/savedVisualizations/4',
+            editUrl: '/objects/savedVisualizations/4',
             inAppUrl: {
               path: '/edit/4',
               uiCapabilitiesPath: 'visualize.show',
@@ -279,7 +283,7 @@ describe('SavedObjectsTable', () => {
 
       await component.instance().onExport(true);
 
-      expect(fetchExportObjectsMock).toHaveBeenCalledWith(http, mockSelectedSavedObjects, true);
+      expect(fetchExportObjectsMock).toHaveBeenCalledWith(http, mockSelectedSavedObjects, true, {});
       expect(notifications.toasts.addSuccess).toHaveBeenCalledWith({
         title: 'Your file is downloading in the background',
       });
@@ -322,7 +326,7 @@ describe('SavedObjectsTable', () => {
 
       await component.instance().onExport(true);
 
-      expect(fetchExportObjectsMock).toHaveBeenCalledWith(http, mockSelectedSavedObjects, true);
+      expect(fetchExportObjectsMock).toHaveBeenCalledWith(http, mockSelectedSavedObjects, true, {});
       expect(notifications.toasts.addWarning).toHaveBeenCalledWith({
         title:
           'Your file is downloading in the background. ' +
@@ -363,7 +367,8 @@ describe('SavedObjectsTable', () => {
         http,
         allowedTypes,
         undefined,
-        true
+        true,
+        {}
       );
       expect(saveAsMock).toHaveBeenCalledWith(blob, 'export.ndjson');
       expect(notifications.toasts.addSuccess).toHaveBeenCalledWith({
@@ -393,7 +398,8 @@ describe('SavedObjectsTable', () => {
         http,
         allowedTypes,
         'test*',
-        true
+        true,
+        {}
       );
       expect(saveAsMock).toHaveBeenCalledWith(blob, 'export.ndjson');
       expect(notifications.toasts.addSuccess).toHaveBeenCalledWith({
@@ -460,7 +466,7 @@ describe('SavedObjectsTable', () => {
         meta: {
           title: `MySearch`,
           icon: 'search',
-          editUrl: '/management/opensearch-dashboards/objects/savedSearches/2',
+          editUrl: '/objects/savedSearches/2',
           inAppUrl: {
             path: '/discover/2',
             uiCapabilitiesPath: 'discover.show',
@@ -475,7 +481,7 @@ describe('SavedObjectsTable', () => {
         type: 'search',
         meta: {
           title: 'MySearch',
-          editUrl: '/management/opensearch-dashboards/objects/savedSearches/2',
+          editUrl: '/objects/savedSearches/2',
           icon: 'search',
           inAppUrl: {
             path: '/discover/2',

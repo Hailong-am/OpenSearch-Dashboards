@@ -47,6 +47,7 @@ import { IUiSettingsClient } from '../ui_settings';
 import { SavedObjectsStart } from '../saved_objects';
 import { AppCategory } from '../../types';
 import { ScopedHistory } from './scoped_history';
+import { WorkspacesStart } from '../workspace';
 
 /**
  * Accessibility status of an application.
@@ -244,6 +245,16 @@ export interface App<HistoryLocationState = unknown> {
    * ```
    */
   exactRoute?: boolean;
+
+  /**
+   * The dependencies of one application, required feature will be automatic select and can't
+   * be unselect in the workspace configuration.
+   */
+  dependencies?: {
+    [key: string]: {
+      type: 'required' | 'optional';
+    };
+  };
 }
 
 /**
@@ -334,6 +345,8 @@ export interface AppMountContext {
     injectedMetadata: {
       getInjectedVar: (name: string, defaultValue?: any) => unknown;
     };
+    /** {@link WorkspacesService} */
+    workspaces: WorkspacesStart;
   };
 }
 

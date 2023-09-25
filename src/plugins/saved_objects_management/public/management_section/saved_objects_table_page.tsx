@@ -30,13 +30,13 @@
 
 import React, { useEffect } from 'react';
 import { get } from 'lodash';
-import { i18n } from '@osd/i18n';
 import { CoreStart, ChromeBreadcrumb } from 'src/core/public';
 import { DataPublicPluginStart } from '../../../data/public';
 import {
   ISavedObjectsManagementServiceRegistry,
   SavedObjectsManagementActionServiceStart,
   SavedObjectsManagementColumnServiceStart,
+  SavedObjectsManagementNamespaceServiceStart,
 } from '../services';
 import { SavedObjectsTable } from './objects_table';
 
@@ -49,6 +49,8 @@ const SavedObjectsTablePage = ({
   columnRegistry,
   namespaceRegistry,
   setBreadcrumbs,
+  title,
+  fullWidth,
 }: {
   coreStart: CoreStart;
   dataStart: DataPublicPluginStart;
@@ -58,6 +60,8 @@ const SavedObjectsTablePage = ({
   columnRegistry: SavedObjectsManagementColumnServiceStart;
   namespaceRegistry: SavedObjectsManagementNamespaceServiceStart;
   setBreadcrumbs: (crumbs: ChromeBreadcrumb[]) => void;
+  title: string;
+  fullWidth: boolean;
 }) => {
   const capabilities = coreStart.application.capabilities;
   const itemsPerPage = coreStart.uiSettings.get<number>('savedObjects:perPage', 50);
@@ -66,13 +70,14 @@ const SavedObjectsTablePage = ({
   useEffect(() => {
     setBreadcrumbs([
       {
-        text: i18n.translate('savedObjectsManagement.breadcrumb.index', {
-          defaultMessage: 'Saved objects',
-        }),
-        href: '/',
+        text: title,
+        /**
+         * There is no need to set a link for current bread crumb
+         */
+        href: undefined,
       },
     ]);
-  }, [setBreadcrumbs]);
+  }, [setBreadcrumbs, title]);
 
   return (
     <SavedObjectsTable
@@ -85,6 +90,7 @@ const SavedObjectsTablePage = ({
       indexPatterns={dataStart.indexPatterns}
       search={dataStart.search}
       http={coreStart.http}
+      workspaces={coreStart.workspaces}
       overlays={coreStart.overlays}
       notifications={coreStart.notifications}
       applications={coreStart.application}
@@ -102,6 +108,8 @@ const SavedObjectsTablePage = ({
         const { inAppUrl } = savedObject.meta;
         return inAppUrl ? Boolean(get(capabilities, inAppUrl.uiCapabilitiesPath)) : false;
       }}
+      title={title}
+      fullWidth={fullWidth}
     />
   );
 };

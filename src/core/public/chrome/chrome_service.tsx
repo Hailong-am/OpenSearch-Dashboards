@@ -34,7 +34,7 @@ import { FormattedMessage } from '@osd/i18n/react';
 import { BehaviorSubject, combineLatest, merge, Observable, of, ReplaySubject } from 'rxjs';
 import { flatMap, map, takeUntil } from 'rxjs/operators';
 import { EuiLink } from '@elastic/eui';
-import { mountReactNode } from '../utils/mount';
+import { mountReactNode } from '../utils';
 import { InternalApplicationStart } from '../application';
 import { DocLinksStart } from '../doc_links';
 import { HttpStart } from '../http';
@@ -48,7 +48,7 @@ import { ChromeNavLinks, NavLinksService, ChromeNavLink } from './nav_links';
 import { ChromeRecentlyAccessed, RecentlyAccessedService } from './recently_accessed';
 import { Header } from './ui';
 import { ChromeHelpExtensionMenuLink } from './ui/header/header_help_menu';
-import { Branding } from '../';
+import { Branding, WorkspacesStart } from '../';
 import { getLogos } from '../../common';
 import type { Logos } from '../../common/types';
 
@@ -96,6 +96,7 @@ interface StartDeps {
   injectedMetadata: InjectedMetadataStart;
   notifications: NotificationsStart;
   uiSettings: IUiSettingsClient;
+  workspaces: WorkspacesStart;
 }
 
 /** @internal */
@@ -149,6 +150,7 @@ export class ChromeService {
     injectedMetadata,
     notifications,
     uiSettings,
+    workspaces,
   }: StartDeps): Promise<InternalChromeStart> {
     this.initVisibility(application);
 
@@ -242,7 +244,6 @@ export class ChromeService {
           badge$={badge$.pipe(takeUntil(this.stop$))}
           basePath={http.basePath}
           breadcrumbs$={breadcrumbs$.pipe(takeUntil(this.stop$))}
-          customNavLink$={customNavLink$.pipe(takeUntil(this.stop$))}
           opensearchDashboardsDocLink={docLinks.links.opensearchDashboards.introduction}
           forceAppSwitcherNavigation$={navLinks.getForceAppSwitcherNavigation$()}
           helpExtension$={helpExtension$.pipe(takeUntil(this.stop$))}
@@ -250,7 +251,8 @@ export class ChromeService {
           homeHref={http.basePath.prepend('/app/home')}
           isVisible$={this.isVisible$}
           opensearchDashboardsVersion={injectedMetadata.getOpenSearchDashboardsVersion()}
-          navLinks$={navLinks.getNavLinks$()}
+          navLinks$={navLinks.getFilteredNavLinks$()}
+          customNavLink$={customNavLink$.pipe(takeUntil(this.stop$))}
           recentlyAccessed$={recentlyAccessed.get$()}
           navControlsLeft$={navControls.getLeft$()}
           navControlsCenter$={navControls.getCenter$()}
@@ -262,6 +264,7 @@ export class ChromeService {
           branding={injectedMetadata.getBranding()}
           logos={logos}
           survey={injectedMetadata.getSurvey()}
+          workspaces={workspaces}
         />
       ),
 

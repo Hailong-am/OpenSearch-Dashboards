@@ -38,7 +38,7 @@ import { validateReferences } from './validate_references';
 import { checkOriginConflicts } from './check_origin_conflicts';
 import { createSavedObjects } from './create_saved_objects';
 import { checkConflicts } from './check_conflicts';
-import { regenerateIds } from './regenerate_ids';
+import { regenerateIds, regenerateIdsWithReference } from './regenerate_ids';
 
 /**
  * Import saved objects from given stream. See the {@link SavedObjectsImportOptions | options} for more
@@ -54,6 +54,7 @@ export async function importSavedObjectsFromStream({
   savedObjectsClient,
   typeRegistry,
   namespace,
+  workspaces,
 }: SavedObjectsImportOptions): Promise<SavedObjectsImportResponse> {
   let errorAccumulator: SavedObjectsImportError[] = [];
   const supportedTypes = typeRegistry.getImportableAndExportableTypes().map((type) => type.name);
@@ -80,12 +81,20 @@ export async function importSavedObjectsFromStream({
   if (createNewCopies) {
     importIdMap = regenerateIds(collectSavedObjectsResult.collectedObjects);
   } else {
+    importIdMap = await regenerateIdsWithReference({
+      savedObjects: collectSavedObjectsResult.collectedObjects,
+      savedObjectsClient,
+      workspaces,
+      objectLimit,
+      importIdMap,
+    });
     // Check single-namespace objects for conflicts in this namespace, and check multi-namespace objects for conflicts across all namespaces
     const checkConflictsParams = {
       objects: collectSavedObjectsResult.collectedObjects,
       savedObjectsClient,
       namespace,
       ignoreRegularConflicts: overwrite,
+      workspaces,
     };
     const checkConflictsResult = await checkConflicts(checkConflictsParams);
     errorAccumulator = [...errorAccumulator, ...checkConflictsResult.errors];
@@ -118,6 +127,7 @@ export async function importSavedObjectsFromStream({
     importIdMap,
     overwrite,
     namespace,
+    ...(workspaces ? { workspaces } : {}),
   };
   const createSavedObjectsResult = await createSavedObjects(createSavedObjectsParams);
   errorAccumulator = [...errorAccumulator, ...createSavedObjectsResult.errors];

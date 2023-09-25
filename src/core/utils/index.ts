@@ -37,3 +37,11 @@ export {
   IContextProvider,
 } from './context';
 export { DEFAULT_APP_CATEGORIES } from './default_app_categories';
+export {
+  WORKSPACE_PATH_PREFIX,
+  WorkspacePermissionMode,
+  PUBLIC_WORKSPACE_ID,
+  MANAGEMENT_WORKSPACE_ID,
+  WORKSPACE_TYPE,
+  PERSONAL_WORKSPACE_ID_PREFIX,
+} from './constants';

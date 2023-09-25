@@ -61,11 +61,14 @@ import { FormattedMessage } from '@osd/i18n/react';
 import {
   SavedObjectsClientContract,
   SavedObjectsFindOptions,
+  WorkspacesStart,
   HttpStart,
   OverlayStart,
   NotificationsStart,
   ApplicationStart,
+  WorkspaceAttribute,
 } from 'src/core/public';
+import { Subscription } from 'rxjs';
 import { RedirectAppLinks } from '../../../../opensearch_dashboards_react/public';
 import { IndexPatternsContract } from '../../../../data/public';
 import {
@@ -81,6 +84,7 @@ import {
   findObject,
   extractExportDetails,
   SavedObjectsExportResultDetails,
+  duplicateSavedObjects,
 } from '../../lib';
 import { SavedObjectWithMetadata } from '../../types';
 import {
@@ -89,14 +93,15 @@ import {
   SavedObjectsManagementColumnServiceStart,
   SavedObjectsManagementNamespaceServiceStart,
 } from '../../services';
-import { Header, Table, Flyout, Relationships } from './components';
-import { DataPublicPluginStart } from '../../../../../plugins/data/public';
+import { Header, Table, Flyout, Relationships, SavedObjectsDuplicateModal } from './components';
+import { DataPublicPluginStart } from '../../../../data/public';
+import { PUBLIC_WORKSPACE_ID } from '../../../../../core/public';
+import { DuplicateMode } from './';
 
 interface ExportAllOption {
   id: string;
   label: string;
 }
-
 export interface SavedObjectsTableProps {
   allowedTypes: string[];
   serviceRegistry: ISavedObjectsManagementServiceRegistry;
@@ -106,6 +111,7 @@ export interface SavedObjectsTableProps {
   savedObjectsClient: SavedObjectsClientContract;
   indexPatterns: IndexPatternsContract;
   http: HttpStart;
+  workspaces: WorkspacesStart;
   search: DataPublicPluginStart['search'];
   overlays: OverlayStart;
   notifications: NotificationsStart;
@@ -114,6 +120,8 @@ export interface SavedObjectsTableProps {
   goInspectObject: (obj: SavedObjectWithMetadata) => void;
   canGoInApp: (obj: SavedObjectWithMetadata) => boolean;
   dateFormat: string;
+  title: string;
+  fullWidth: boolean;
 }
 
 export interface SavedObjectsTableState {
@@ -121,10 +129,13 @@ export interface SavedObjectsTableState {
   page: number;
   perPage: number;
   savedObjects: SavedObjectWithMetadata[];
-  savedObjectCounts: Record<string, number>;
+  savedObjectCounts: Record<string, Record<string, number>>;
   activeQuery: Query;
   selectedSavedObjects: SavedObjectWithMetadata[];
+  duplicateSelectedSavedObjects: SavedObjectWithMetadata[];
   isShowingImportFlyout: boolean;
+  duplicateMode: DuplicateMode;
+  isShowingDuplicateModal: boolean;
   isSearching: boolean;
   filteredItemCount: number;
   isShowingRelationships: boolean;
@@ -135,26 +146,37 @@ export interface SavedObjectsTableState {
   exportAllOptions: ExportAllOption[];
   exportAllSelectedOptions: Record<string, boolean>;
   isIncludeReferencesDeepChecked: boolean;
+  currentWorkspaceId: string | null;
+  availableWorkspaces?: WorkspaceAttribute[];
+  workspaceEnabled: boolean;
 }
 
 export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedObjectsTableState> {
   private _isMounted = false;
+  private currentWorkspaceIdSubscription?: Subscription;
+  private workspacesSubscription?: Subscription;
+  private workspacesEnabledSubscription?: Subscription;
 
   constructor(props: SavedObjectsTableProps) {
     super(props);
+
+    const typeCounts = props.allowedTypes.reduce((typeToCountMap, type) => {
+      typeToCountMap[type] = 0;
+      return typeToCountMap;
+    }, {} as Record<string, number>);
 
     this.state = {
       totalCount: 0,
       page: 0,
       perPage: props.perPageConfig || 50,
       savedObjects: [],
-      savedObjectCounts: props.allowedTypes.reduce((typeToCountMap, type) => {
-        typeToCountMap[type] = 0;
-        return typeToCountMap;
-      }, {} as Record<string, number>),
+      savedObjectCounts: { type: typeCounts } as Record<string, Record<string, number>>,
       activeQuery: Query.parse(''),
       selectedSavedObjects: [],
+      duplicateSelectedSavedObjects: [],
       isShowingImportFlyout: false,
+      duplicateMode: DuplicateMode.Selected,
+      isShowingDuplicateModal: false,
       isSearching: false,
       filteredItemCount: 0,
       isShowingRelationships: false,
@@ -165,11 +187,49 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
       exportAllOptions: [],
       exportAllSelectedOptions: {},
       isIncludeReferencesDeepChecked: true,
+      currentWorkspaceId: this.props.workspaces.currentWorkspaceId$.getValue(),
+      availableWorkspaces: this.props.workspaces.workspaceList$.getValue(),
+      workspaceEnabled: this.props.workspaces.workspaceEnabled$.getValue(),
     };
+  }
+
+  private get workspaceIdQuery() {
+    const { availableWorkspaces, currentWorkspaceId, workspaceEnabled } = this.state;
+    // workspace is turned off
+    if (!workspaceEnabled) {
+      return undefined;
+    } else {
+      // application home
+      if (!currentWorkspaceId) {
+        return availableWorkspaces?.map((ws) => ws.id);
+      } else {
+        return [currentWorkspaceId];
+      }
+    }
+  }
+
+  private get wsNameIdLookup() {
+    const { availableWorkspaces } = this.state;
+    //  Assumption: workspace name is unique across the system
+    return availableWorkspaces?.reduce((map, ws) => {
+      return map.set(ws.name, ws.id);
+    }, new Map<string, string>());
+  }
+
+  private formatWorkspaceIdParams<T extends { workspaces?: string[] }>(
+    obj: T
+  ): T | Omit<T, 'workspaces'> {
+    const { workspaces, ...others } = obj;
+    if (workspaces) {
+      return obj;
+    }
+    return others;
   }
 
   componentDidMount() {
     this._isMounted = true;
+
+    this.fetchWorkspace();
     this.fetchSavedObjects();
     this.fetchCounts();
   }
@@ -177,24 +237,35 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
   componentWillUnmount() {
     this._isMounted = false;
     this.debouncedFetchObjects.cancel();
+    this.currentWorkspaceIdSubscription?.unsubscribe();
+    this.workspacesSubscription?.unsubscribe();
+    this.workspacesEnabledSubscription?.unsubscribe();
   }
 
   fetchCounts = async () => {
     const { allowedTypes, namespaceRegistry } = this.props;
-    const { queryText, visibleTypes, visibleNamespaces } = parseQuery(this.state.activeQuery);
+    const { queryText, visibleTypes, visibleNamespaces, visibleWorkspaces } = parseQuery(
+      this.state.activeQuery
+    );
 
     const filteredTypes = filterQuery(allowedTypes, visibleTypes);
 
     const availableNamespaces = namespaceRegistry.getAll()?.map((ns) => ns.id) || [];
 
-    const filteredCountOptions: SavedObjectCountOptions = {
+    const filteredCountOptions: SavedObjectCountOptions = this.formatWorkspaceIdParams({
       typesToInclude: filteredTypes,
       searchString: queryText,
-    };
+      workspaces: this.workspaceIdQuery,
+    });
 
     if (availableNamespaces.length) {
       const filteredNamespaces = filterQuery(availableNamespaces, visibleNamespaces);
       filteredCountOptions.namespacesToInclude = filteredNamespaces;
+    }
+    if (visibleWorkspaces?.length) {
+      filteredCountOptions.workspaces = visibleWorkspaces.map(
+        (wsName) => this.wsNameIdLookup?.get(wsName) || PUBLIC_WORKSPACE_ID
+      );
     }
 
     // These are the saved objects visible in the table.
@@ -219,10 +290,11 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
       exportAllSelectedOptions[id] = true;
     });
 
-    const countOptions: SavedObjectCountOptions = {
+    const countOptions: SavedObjectCountOptions = this.formatWorkspaceIdParams({
       typesToInclude: allowedTypes,
       searchString: queryText,
-    };
+      workspaces: this.workspaceIdQuery,
+    });
 
     if (availableNamespaces.length) {
       countOptions.namespacesToInclude = availableNamespaces;
@@ -244,6 +316,23 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
     this.setState({ isSearching: true }, this.debouncedFetchObjects);
   };
 
+  fetchWorkspace = () => {
+    const workspace = this.props.workspaces;
+    this.currentWorkspaceIdSubscription = workspace.currentWorkspaceId$.subscribe((workspaceId) =>
+      this.setState({
+        currentWorkspaceId: workspaceId,
+      })
+    );
+
+    this.workspacesSubscription = workspace.workspaceList$.subscribe((workspaceList) => {
+      this.setState({ availableWorkspaces: workspaceList });
+    });
+
+    this.workspacesEnabledSubscription = workspace.workspaceEnabled$.subscribe((enabled) => {
+      this.setState({ workspaceEnabled: enabled });
+    });
+  };
+
   fetchSavedObject = (type: string, id: string) => {
     this.setState({ isSearching: true }, () => this.debouncedFetchObject(type, id));
   };
@@ -251,22 +340,30 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
   debouncedFetchObjects = debounce(async () => {
     const { activeQuery: query, page, perPage } = this.state;
     const { notifications, http, allowedTypes, namespaceRegistry } = this.props;
-    const { queryText, visibleTypes, visibleNamespaces } = parseQuery(query);
+    const { queryText, visibleTypes, visibleNamespaces, visibleWorkspaces } = parseQuery(query);
     const filteredTypes = filterQuery(allowedTypes, visibleTypes);
     // "searchFields" is missing from the "findOptions" but gets injected via the API.
     // The API extracts the fields from each uiExports.savedObjectsManagement "defaultSearchField" attribute
-    const findOptions: SavedObjectsFindOptions = {
+    const findOptions: SavedObjectsFindOptions = this.formatWorkspaceIdParams({
       search: queryText ? `${queryText}*` : undefined,
       perPage,
       page: page + 1,
       fields: ['id'],
       type: filteredTypes,
-    };
+      workspaces: this.workspaceIdQuery,
+    });
 
     const availableNamespaces = namespaceRegistry.getAll()?.map((ns) => ns.id) || [];
     if (availableNamespaces.length) {
       const filteredNamespaces = filterQuery(availableNamespaces, visibleNamespaces);
       findOptions.namespaces = filteredNamespaces;
+    }
+
+    if (visibleWorkspaces?.length) {
+      const workspaceIds: string[] = visibleWorkspaces.map(
+        (wsName) => this.wsNameIdLookup?.get(wsName) || PUBLIC_WORKSPACE_ID
+      );
+      findOptions.workspaces = workspaceIds;
     }
 
     if (findOptions.type.length > 1) {
@@ -403,7 +500,14 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
 
     let blob;
     try {
-      blob = await fetchExportObjects(http, objectsToExport, includeReferencesDeep);
+      blob = await fetchExportObjects(
+        http,
+        objectsToExport,
+        includeReferencesDeep,
+        this.formatWorkspaceIdParams({
+          workspaces: this.workspaceIdQuery,
+        })
+      );
     } catch (e) {
       notifications.toasts.addDanger({
         title: i18n.translate('savedObjectsManagement.objectsTable.export.dangerNotification', {
@@ -437,7 +541,10 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
         http,
         exportTypes,
         queryText ? `${queryText}*` : undefined,
-        isIncludeReferencesDeepChecked
+        isIncludeReferencesDeepChecked,
+        this.formatWorkspaceIdParams({
+          workspaces: this.workspaceIdQuery,
+        })
       );
     } catch (e) {
       notifications.toasts.addDanger({
@@ -543,21 +650,113 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
       return null;
     }
     const { applications } = this.props;
-    const newIndexPatternUrl = applications.getUrlForApp('management', {
-      path: 'opensearch-dashboards/indexPatterns',
-    });
+    const newIndexPatternUrl = applications.getUrlForApp('indexPatterns');
 
     return (
       <Flyout
         close={this.hideImportFlyout}
         done={this.finishImport}
         http={this.props.http}
+        workspaces={this.state.currentWorkspaceId ? [this.state.currentWorkspaceId] : undefined}
         serviceRegistry={this.props.serviceRegistry}
         indexPatterns={this.props.indexPatterns}
         newIndexPatternUrl={newIndexPatternUrl}
         allowedTypes={this.props.allowedTypes}
         overlays={this.props.overlays}
         search={this.props.search}
+      />
+    );
+  }
+
+  showDuplicateModal = () => {
+    this.setState({ isShowingDuplicateModal: true });
+  };
+
+  hideDuplicateModal = () => {
+    this.setState({ isShowingDuplicateModal: false });
+  };
+
+  renderDuplicateModal() {
+    const { workspaces, http, notifications } = this.props;
+    const { isShowingDuplicateModal, duplicateSelectedSavedObjects, duplicateMode } = this.state;
+
+    if (!isShowingDuplicateModal) {
+      return null;
+    }
+
+    const onDuplicate = async (
+      savedObjects: SavedObjectWithMetadata[],
+      includeReferencesDeep: boolean,
+      targetWorkspace: string
+    ) => {
+      const objectsToDuplicate = savedObjects.map((obj) => ({ id: obj.id, type: obj.type }));
+      let result;
+      try {
+        result = await duplicateSavedObjects(
+          http,
+          objectsToDuplicate,
+          includeReferencesDeep,
+          targetWorkspace
+        );
+        if (result.success) {
+          notifications.toasts.addSuccess({
+            title: i18n.translate(
+              'savedObjectsManagement.objectsTable.duplicate.successNotification',
+              {
+                defaultMessage:
+                  'Duplicate ' + savedObjects.length.toString() + ' saved objects successfully',
+              }
+            ),
+          });
+        } else if (result.errors) {
+          const errorsIds = result.errors.map((item: { id: string }) => item.id);
+          notifications.toasts.addDanger({
+            title: i18n.translate(
+              'savedObjectsManagement.objectsTable.duplicate.dangerNotification',
+              {
+                defaultMessage:
+                  'Unable to duplicate ' +
+                  savedObjects.length.toString() +
+                  ' saved objects. These objects cannot be duplicated:' +
+                  errorsIds.join(','),
+              }
+            ),
+          });
+        } else {
+          notifications.toasts.addDanger({
+            title: i18n.translate(
+              'savedObjectsManagement.objectsTable.duplicate.dangerNotification',
+              {
+                defaultMessage:
+                  'Unable to duplicate ' + savedObjects.length.toString() + ' saved objects',
+              }
+            ),
+          });
+        }
+      } catch (e) {
+        notifications.toasts.addDanger({
+          title: i18n.translate(
+            'savedObjectsManagement.objectsTable.duplicate.dangerNotification',
+            {
+              defaultMessage:
+                'Unable to duplicate ' + savedObjects.length.toString() + ' saved objects',
+            }
+          ),
+        });
+      }
+      this.hideDuplicateModal();
+      await this.refreshObjects();
+    };
+
+    return (
+      <SavedObjectsDuplicateModal
+        http={http}
+        workspaces={workspaces}
+        onDuplicate={onDuplicate}
+        notifications={notifications}
+        duplicateMode={duplicateMode}
+        onClose={this.hideDuplicateModal}
+        selectedSavedObjects={duplicateSelectedSavedObjects}
       />
     );
   }
@@ -796,6 +995,9 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
       filteredItemCount,
       isSearching,
       savedObjectCounts,
+      availableWorkspaces: availableWorkspace,
+      workspaceEnabled,
+      currentWorkspaceId: workspaceId,
     } = this.state;
     const { http, allowedTypes, applications, namespaceRegistry } = this.props;
 
@@ -846,17 +1048,63 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
       });
     }
 
+    // Add workspace filter
+    if (workspaceEnabled && availableWorkspace?.length) {
+      const wsCounts = savedObjectCounts.workspaces || {};
+      const wsFilterOptions = availableWorkspace
+        .filter((ws) => {
+          return this.workspaceIdQuery?.includes(ws.id);
+        })
+        .map((ws) => {
+          return {
+            name: ws.name,
+            value: ws.name,
+            view: `${ws.name} (${wsCounts[ws.id] || 0})`,
+          };
+        });
+
+      filters.push({
+        type: 'field_value_selection',
+        field: 'workspaces',
+        name:
+          namespaceRegistry.getAlias() ||
+          i18n.translate('savedObjectsManagement.objectsTable.table.workspaceFilterName', {
+            defaultMessage: 'Workspaces',
+          }),
+        multiSelect: 'or',
+        options: wsFilterOptions,
+      });
+    }
+
+    // workspace enable and no workspace is selected
+    const hideImport = workspaceEnabled && !workspaceId;
+
     return (
-      <EuiPageContent horizontalPosition="center">
+      <EuiPageContent
+        horizontalPosition="center"
+        style={this.props.fullWidth ? {} : { maxWidth: '75%', marginTop: '40px' }}
+      >
         {this.renderFlyout()}
         {this.renderRelationships()}
         {this.renderDeleteConfirmModal()}
         {this.renderExportAllOptionsModal()}
+        {this.renderDuplicateModal()}
         <Header
           onExportAll={() => this.setState({ isShowingExportAllOptionsModal: true })}
           onImport={this.showImportFlyout}
+          hideImport={hideImport}
+          showDuplicateAll={workspaceEnabled}
+          onDuplicate={() =>
+            this.setState({
+              duplicateSelectedSavedObjects: savedObjects,
+              isShowingDuplicateModal: true,
+              duplicateMode: DuplicateMode.All,
+            })
+          }
           onRefresh={this.refreshObjects}
           filteredCount={filteredItemCount}
+          title={this.props.title}
+          objectCount={savedObjects.length}
         />
         <EuiSpacer size="xs" />
         <RedirectAppLinks application={applications}>
@@ -873,6 +1121,20 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
             onExport={this.onExport}
             canDelete={applications.capabilities.savedObjectsManagement.delete as boolean}
             onDelete={this.onDelete}
+            onDuplicateSelected={() =>
+              this.setState({
+                isShowingDuplicateModal: true,
+                duplicateMode: DuplicateMode.Selected,
+                duplicateSelectedSavedObjects: selectedSavedObjects,
+              })
+            }
+            onDuplicateSingle={(object) =>
+              this.setState({
+                duplicateSelectedSavedObjects: [object],
+                isShowingDuplicateModal: true,
+                duplicateMode: DuplicateMode.Selected,
+              })
+            }
             onActionRefresh={this.refreshObject}
             goInspectObject={this.props.goInspectObject}
             pageIndex={page}
@@ -883,6 +1145,8 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
             onShowRelationships={this.onShowRelationships}
             canGoInApp={this.props.canGoInApp}
             dateFormat={this.props.dateFormat}
+            availableWorkspaces={this.state.availableWorkspaces}
+            showDuplicate={workspaceEnabled}
           />
         </RedirectAppLinks>
       </EuiPageContent>

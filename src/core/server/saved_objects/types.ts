@@ -45,6 +45,7 @@ export {
 } from './import/types';
 
 import { SavedObject } from '../../types';
+import { Principals } from './permission_control/acl';
 
 type KueryNode = any;
 
@@ -110,6 +111,15 @@ export interface SavedObjectsFindOptions {
   typeToNamespacesMap?: Map<string, string[] | undefined>;
   /** An optional OpenSearch preference value to be used for the query **/
   preference?: string;
+  workspaces?: string[];
+  /**
+   * The params here will be combined with bool clause and is used for filtering with ACL structure.
+   */
+  ACLSearchParams?: {
+    workspaces?: string[];
+    principals?: Principals;
+    permissionModes?: string[];
+  };
 }
 
 /**
@@ -119,6 +129,7 @@ export interface SavedObjectsFindOptions {
 export interface SavedObjectsBaseOptions {
   /** Specify the namespace for this operation */
   namespace?: string;
+  workspaces?: string[];
 }
 
 /**

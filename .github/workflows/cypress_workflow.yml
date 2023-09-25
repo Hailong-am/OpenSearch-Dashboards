@@ -19,7 +19,7 @@ env:
 
 jobs:
   cypress-tests:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     container:
       image: docker://opensearchstaging/ci-runner:ci-runner-rockylinux8-opensearch-dashboards-integtest-v2
       options: --user 1001
@@ -55,7 +55,8 @@ jobs:
         with:
           path: ${{ env.FTR_PATH }}
           repository: opensearch-project/opensearch-dashboards-functional-test
-          ref: '${{ github.base_ref }}'
+          # revert this to '${{ github.base_ref }}'
+          ref: 'workspace'
 
       - name: Get Cypress version
         id: cypress_version
@@ -88,7 +89,7 @@ jobs:
           name: ftr-cypress-screenshots
           path: ${{ env.FTR_PATH }}/cypress/screenshots
           retention-days: 1
-      
+
       - uses: actions/upload-artifact@v3
         if: always()
         with:

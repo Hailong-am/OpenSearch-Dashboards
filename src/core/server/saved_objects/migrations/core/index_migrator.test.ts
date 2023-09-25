@@ -82,6 +82,8 @@ describe('IndexMigrator', () => {
               references: '7997cf5a56cc02bdc9c93361bde732b0',
               type: '2f4316de49999235636386fe51dc06c1',
               updated_at: '00da57df13e94e9d98437d13ace4bfe0',
+              workspaces: '2f4316de49999235636386fe51dc06c1',
+              permissions: '07c04cdd060494956fdddaa7ef86e8ac',
             },
           },
           properties: {
@@ -92,6 +94,63 @@ describe('IndexMigrator', () => {
             originId: { type: 'keyword' },
             type: { type: 'keyword' },
             updated_at: { type: 'date' },
+            workspaces: {
+              type: 'keyword',
+            },
+            permissions: {
+              properties: {
+                library_read: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                library_write: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                management: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                read: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                write: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+              },
+            },
             references: {
               type: 'nested',
               properties: {
@@ -199,6 +258,8 @@ describe('IndexMigrator', () => {
               references: '7997cf5a56cc02bdc9c93361bde732b0',
               type: '2f4316de49999235636386fe51dc06c1',
               updated_at: '00da57df13e94e9d98437d13ace4bfe0',
+              workspaces: '2f4316de49999235636386fe51dc06c1',
+              permissions: '07c04cdd060494956fdddaa7ef86e8ac',
             },
           },
           properties: {
@@ -210,6 +271,63 @@ describe('IndexMigrator', () => {
             originId: { type: 'keyword' },
             type: { type: 'keyword' },
             updated_at: { type: 'date' },
+            workspaces: {
+              type: 'keyword',
+            },
+            permissions: {
+              properties: {
+                library_read: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                library_write: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                management: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                read: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                write: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+              },
+            },
             references: {
               type: 'nested',
               properties: {
@@ -260,6 +378,8 @@ describe('IndexMigrator', () => {
               references: '7997cf5a56cc02bdc9c93361bde732b0',
               type: '2f4316de49999235636386fe51dc06c1',
               updated_at: '00da57df13e94e9d98437d13ace4bfe0',
+              workspaces: '2f4316de49999235636386fe51dc06c1',
+              permissions: '07c04cdd060494956fdddaa7ef86e8ac',
             },
           },
           properties: {
@@ -271,6 +391,63 @@ describe('IndexMigrator', () => {
             originId: { type: 'keyword' },
             type: { type: 'keyword' },
             updated_at: { type: 'date' },
+            workspaces: {
+              type: 'keyword',
+            },
+            permissions: {
+              properties: {
+                library_read: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                library_write: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                management: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                read: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+                write: {
+                  properties: {
+                    groups: {
+                      type: 'keyword',
+                    },
+                    users: {
+                      type: 'keyword',
+                    },
+                  },
+                },
+              },
+            },
             references: {
               type: 'nested',
               properties: {
