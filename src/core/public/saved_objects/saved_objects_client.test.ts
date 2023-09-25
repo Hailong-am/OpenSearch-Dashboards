@@ -198,7 +198,6 @@ describe('SavedObjectsClient', () => {
             "method": "DELETE",
             "query": Object {
               "force": false,
-              "workspace": undefined,
             },
           },
         ]

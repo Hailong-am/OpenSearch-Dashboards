@@ -2371,18 +2371,13 @@ describe('SavedObjectsRepository', () => {
     const type = 'index-pattern';
     const id = 'logstash-*';
     const namespace = 'foo-namespace';
-    const workspaces = ['bar-workspace'];
-
-    const mockGet = async (type, id, options) => {
-      const mockGetResponse = getMockGetResponse({ type, id }, options?.namespace, workspaces);
-      client.get.mockResolvedValueOnceOnce(
-        opensearchClientMock.createSuccessTransportRequestPromise(mockGetResponse)
-      );
-    };
 
     const deleteSuccess = async (type, id, options) => {
       if (registry.isMultiNamespace(type)) {
-        mockGet(type, id, options);
+        const mockGetResponse = getMockGetResponse({ type, id }, options?.namespace);
+        client.get.mockResolvedValueOnce(
+          opensearchClientMock.createSuccessTransportRequestPromise(mockGetResponse)
+        );
       }
       client.delete.mockResolvedValueOnce(
         opensearchClientMock.createSuccessTransportRequestPromise({ result: 'deleted' })

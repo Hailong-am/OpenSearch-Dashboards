@@ -310,7 +310,6 @@ export class SavedObjectsClient {
 
     const query = {
       force: !!options?.force,
-      workspace: this._getCurrentWorkspace(),
     };
 
     return this.savedObjectsFetch(this.getPath([type, id]), { method: 'DELETE', query });
