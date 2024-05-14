@@ -636,9 +636,7 @@ describe('#getQueryParams', () => {
           bool: {
             should: [
               {
-                bool: {
-                  must: [{ term: { workspaces: 'foo' } }],
-                },
+                terms: { workspaces: ['foo'] },
               },
             ],
             minimum_should_match: 1,
@@ -686,14 +684,8 @@ describe('#getQueryParams', () => {
                   minimum_should_match: 1,
                   should: [
                     {
-                      bool: {
-                        must: [
-                          {
-                            term: {
-                              workspaces: 'foo',
-                            },
-                          },
-                        ],
+                      terms: {
+                        workspaces: ['foo'],
                       },
                     },
                   ],
