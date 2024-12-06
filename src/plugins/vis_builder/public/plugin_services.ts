@@ -10,6 +10,7 @@ import { HttpStart, IUiSettingsClient } from '../../../core/public';
 import { ExpressionsStart } from '../../expressions/public';
 import { TypeServiceStart } from './services/type_service';
 import { UiActionsStart } from '../../ui_actions/public';
+import { AssistantPublicPluginStart } from '../../../../plugins/dashboards-assistant/public';
 
 export const [getSearchService, setSearchService] = createGetterSetter<
   DataPublicPluginStart['search']
@@ -39,6 +40,10 @@ export const [getTypeService, setTypeService] = createGetterSetter<TypeServiceSt
 
 export const [getUISettings, setUISettings] = createGetterSetter<IUiSettingsClient>('UISettings');
 export const [getUIActions, setUIActions] = createGetterSetter<UiActionsStart>('UIActions');
+
+export const [getAssistantDashboards, setAssistantDashboards] = createGetterSetter<
+  AssistantPublicPluginStart
+>('assistantDashboards');
 
 export const [getQueryService, setQueryService] = createGetterSetter<
   DataPublicPluginStart['query']

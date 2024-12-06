@@ -8,20 +8,41 @@ import { isEqual } from 'lodash';
 import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { i18n } from '@osd/i18n';
+import {
+  EuiButton,
+  EuiFieldText,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiInputPopover,
+  EuiListGroup,
+  EuiListGroupItem,
+} from '@elastic/eui';
 import { useOpenSearchDashboards } from '../../../../opensearch_dashboards_react/public';
 import { getLegacyTopNavConfig, getNavActions, getTopNavConfig } from '../utils/get_top_nav_config';
 import { VisBuilderServices } from '../../types';
 
 import './top_nav.scss';
 import { useIndexPatterns, useSavedVisBuilderVis } from '../utils/use';
-import { useTypedSelector, useTypedDispatch } from '../utils/state_management';
-import { setSavedQuery } from '../utils/state_management/visualization_slice';
-import { setEditorState } from '../utils/state_management/metadata_slice';
+import {
+  useTypedSelector,
+  useTypedDispatch,
+  setActiveVisualization,
+} from '../utils/state_management';
+import {
+  editDraftAgg,
+  saveDraftAgg,
+  setIndexPattern,
+  setSavedQuery,
+} from '../utils/state_management/visualization_slice';
+import { MetadataState, setEditorState, setState } from '../utils/state_management/metadata_slice';
 import { useCanSave } from '../utils/use/use_can_save';
 import { saveStateToSavedObject } from '../../saved_visualizations/transforms';
 import { TopNavMenuData, TopNavMenuItemRenderType } from '../../../../navigation/public';
 import { opensearchFilters, connectStorageToQueryState } from '../../../../data/public';
 import { RootState } from '../../../../data_explorer/public';
+import { getAssistantDashboards } from '../../plugin_services';
+import { getPersistedAggParams } from '../utils/get_persisted_agg_params';
+import { CreateAggConfigParams } from '../../../../data/common';
 
 function useDeepEffect(callback, dependencies) {
   const currentDepsRef = useRef(dependencies);
@@ -45,7 +66,10 @@ export const TopNav = () => {
     uiSettings,
     appName,
     capabilities,
+    types,
+    notifications,
   } = services;
+
   const rootState = useTypedSelector((state: RootState) => state);
   const dispatch = useTypedDispatch();
   const showActionsInGroup = uiSettings.get('home:useNewHomePage');
@@ -137,27 +161,165 @@ export const TopNav = () => {
   };
   const showSaveQuery = !!capabilities['visualization-visbuilder']?.saveQuery;
 
+  const preDefinedQuestions = [
+    'I want to know the log number different between each month',
+    'I want to know the max of monthly count for each year.',
+  ];
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const assistant = getAssistantDashboards();
+  // const agentId = 'fB9Xi5MBoE1KrU6uQY14';
+  const agentId = 'ylVIlZMBRt9ZXgWu-JmL';
+  const callAgent = async () => {
+    setIsLoading(true);
+    try {
+      const indexName = indexPattern?.title;
+      if (!input || !indexName) {
+        notifications.toasts.addWarning(
+          'please select index pattern and input your question first'
+        );
+      }
+
+      const parameters = {
+        question: input,
+        index: indexName,
+      };
+      const agentResponse = await assistant.assistantClient.executeAgent(agentId, parameters, {
+        dataSourceId: indexPattern?.dataSourceRef?.id,
+      });
+
+      const result = agentResponse.body.inference_results[0].output[0].result;
+
+      // eslint-disable-next-line no-console
+      console.log('agent result' + JSON.stringify(result));
+      let resultJson: any;
+      try {
+        resultJson = JSON.parse(result);
+      } catch {
+        notifications.toasts.addWarning('Agent response is invalid json format');
+        return;
+      }
+
+      // mock dispatch
+      const type = resultJson.type;
+      // try to match with title and name
+      const visualizationType = types
+        .all()
+        .find(
+          (visType) => visType.title.toLowerCase() === type || visType.name.toLowerCase() === type
+        );
+
+      if (!visualizationType) {
+        notifications.toasts.addWarning('Unsupported visualization type: ' + type);
+        return;
+      }
+
+      const newVisName = visualizationType.name;
+      const currentVisSchemas = [];
+      const newVisSchemas = types.get(newVisName)?.ui.containerConfig.data.schemas.all ?? [];
+      const persistedAggParams = getPersistedAggParams([], currentVisSchemas, newVisSchemas);
+
+      const newVis = {
+        name: newVisName,
+        aggConfigParams: persistedAggParams,
+        style: types.get(newVisName)?.ui.containerConfig.style.defaults,
+      };
+
+      dispatch(setActiveVisualization(newVis));
+
+      const configs = resultJson.config as CreateAggConfigParams[];
+      configs.forEach((aggConfig) => {
+        if (aggConfig.type === 'derivative' && aggConfig.params) {
+          aggConfig.params.metricAgg = 'custom';
+        }
+        dispatch(editDraftAgg(aggConfig));
+        dispatch(saveDraftAgg());
+      });
+
+      // filters
+      const filters = resultJson.filters;
+
+      const editorState: MetadataState = {
+        editor: {
+          state: 'clean',
+          errors: {
+            SECONDARY_PANEL: false,
+          },
+        },
+      };
+      dispatch(setState(editorState));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
   return (
     <div className="vbTopNav">
-      <TopNavMenu
-        appName={appName}
-        config={config}
-        setMenuMountPoint={setHeaderActionMenu}
-        indexPatterns={indexPattern ? [indexPattern] : []}
-        showDatePicker={!!indexPattern?.timeFieldName ?? true}
-        showSearchBar={TopNavMenuItemRenderType.IN_PORTAL}
-        showSaveQuery={showSaveQuery}
-        useDefaultBehaviors
-        savedQueryId={rootState.visualization.savedQuery}
-        onSavedQueryIdChange={updateSavedQueryId}
-        groupActions={showActionsInGroup}
-        screenTitle={
-          savedVisBuilderVis?.title ||
-          i18n.translate('visBuilder.savedSearch.newTitle', {
-            defaultMessage: 'New visualization',
-          })
-        }
-      />
+      <>
+        <TopNavMenu
+          appName={appName}
+          config={config}
+          setMenuMountPoint={setHeaderActionMenu}
+          indexPatterns={indexPattern ? [indexPattern] : []}
+          showDatePicker={!!indexPattern?.timeFieldName ?? true}
+          showSearchBar={TopNavMenuItemRenderType.IN_PORTAL}
+          showSaveQuery={showSaveQuery}
+          useDefaultBehaviors
+          savedQueryId={rootState.visualization.savedQuery}
+          onSavedQueryIdChange={updateSavedQueryId}
+          groupActions={showActionsInGroup}
+          screenTitle={
+            savedVisBuilderVis?.title ||
+            i18n.translate('visBuilder.savedSearch.newTitle', {
+              defaultMessage: 'New visualization',
+            })
+          }
+        />
+        <EuiFlexGroup gutterSize="xs" style={{ margin: '4px' }}>
+          <EuiFlexItem>
+            <EuiInputPopover
+              fullWidth
+              input={
+                <EuiFieldText
+                  fullWidth
+                  placeholder="Input your question here"
+                  value={input}
+                  onFocus={() => {
+                    if (!input) {
+                      setIsPopoverOpen(true);
+                    }
+                  }}
+                  onChange={(e) => setInput(e.target.value)}
+                />
+              }
+              isOpen={isPopoverOpen}
+              closePopover={() => {
+                setIsPopoverOpen(false);
+              }}
+            >
+              <EuiListGroup flush={true} maxWidth={false}>
+                {preDefinedQuestions.map((str) => (
+                  <EuiListGroupItem
+                    onClick={() => {
+                      setInput(str);
+                      setIsPopoverOpen(false);
+                    }}
+                    label={str}
+                  />
+                ))}
+              </EuiListGroup>
+            </EuiInputPopover>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiButton isLoading={isLoading} onClick={callAgent}>
+              Go!!
+            </EuiButton>
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      </>
     </div>
   );
 };

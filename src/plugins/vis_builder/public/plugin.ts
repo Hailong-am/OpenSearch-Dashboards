@@ -45,6 +45,7 @@ import {
   setReactExpressionRenderer,
   setQueryService,
   setUIActions,
+  setAssistantDashboards,
 } from './plugin_services';
 import { createSavedVisBuilderLoader } from './saved_visualizations';
 import { registerDefaultTypes } from './visualizations';
@@ -223,7 +224,7 @@ export class VisBuilderPlugin
 
   public start(
     core: CoreStart,
-    { expressions, data, uiActions }: VisBuilderPluginStartDependencies
+    { expressions, data, uiActions, assistantDashboards }: VisBuilderPluginStartDependencies
   ): VisBuilderStart {
     const typeService = this.typeService.start();
 
@@ -247,6 +248,7 @@ export class VisBuilderPlugin
     setUISettings(core.uiSettings);
     setUIActions(uiActions);
     setQueryService(data.query);
+    setAssistantDashboards(assistantDashboards);
 
     return {
       ...typeService,

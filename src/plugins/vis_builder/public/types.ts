@@ -19,6 +19,7 @@ import { DataPublicPluginSetup } from '../../data/public';
 import { UiActionsStart } from '../../ui_actions/public';
 import { Capabilities } from '../../../core/public';
 import { IUiSettingsClient } from '../../../core/public';
+import { AssistantPublicPluginStart } from '../../../../plugins/dashboards-assistant/public';
 
 export type VisBuilderSetup = TypeServiceSetup;
 export interface VisBuilderStart extends TypeServiceStart {
@@ -40,6 +41,7 @@ export interface VisBuilderPluginStartDependencies {
   expressions: ExpressionsStart;
   uiActions: UiActionsStart;
   uiSettings: IUiSettingsClient;
+  assistantDashboards: AssistantPublicPluginStart;
 }
 
 export interface VisBuilderServices extends CoreStart {

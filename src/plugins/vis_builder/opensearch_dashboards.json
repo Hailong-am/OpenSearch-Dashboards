@@ -12,7 +12,8 @@
     "navigation",
     "savedObjects",
     "visualizations",
-    "uiActions"
+    "uiActions",
+    "assistantDashboards"
   ],
   "requiredBundles": [
     "charts",
