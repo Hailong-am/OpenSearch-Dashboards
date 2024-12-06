@@ -13,15 +13,18 @@ import {
   EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiIcon,
   EuiInputPopover,
   EuiListGroup,
   EuiListGroupItem,
+  EuiSmallButton,
 } from '@elastic/eui';
 import { useOpenSearchDashboards } from '../../../../opensearch_dashboards_react/public';
 import { getLegacyTopNavConfig, getNavActions, getTopNavConfig } from '../utils/get_top_nav_config';
 import { VisBuilderServices } from '../../types';
 
 import './top_nav.scss';
+import AIIcon from '../../sparkle_mark.svg';
 import { useIndexPatterns, useSavedVisBuilderVis } from '../utils/use';
 import {
   useTypedSelector,
@@ -283,17 +286,26 @@ export const TopNav = () => {
             <EuiInputPopover
               fullWidth
               input={
-                <EuiFieldText
-                  fullWidth
-                  placeholder="Input your question here"
-                  value={input}
-                  onFocus={() => {
-                    if (!input) {
-                      setIsPopoverOpen(true);
-                    }
-                  }}
-                  onChange={(e) => setInput(e.target.value)}
-                />
+                <EuiFlexGroup gutterSize="none" alignItems="center">
+                  <EuiFlexItem grow={false}>
+                    <EuiIcon type={AIIcon} size="l" />
+                  </EuiFlexItem>
+                  <EuiFlexItem>
+                    <EuiFieldText
+                      fullWidth
+                      compressed
+                      placeholder="Input your question here"
+                      value={input}
+                      disabled={isLoading}
+                      onFocus={() => {
+                        if (!input) {
+                          setIsPopoverOpen(true);
+                        }
+                      }}
+                      onChange={(e) => setInput(e.target.value)}
+                    />
+                  </EuiFlexItem>
+                </EuiFlexGroup>
               }
               isOpen={isPopoverOpen}
               closePopover={() => {
@@ -314,9 +326,9 @@ export const TopNav = () => {
             </EuiInputPopover>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiButton isLoading={isLoading} onClick={callAgent}>
+            <EuiSmallButton isLoading={isLoading} onClick={callAgent}>
               Go!!
-            </EuiButton>
+            </EuiSmallButton>
           </EuiFlexItem>
         </EuiFlexGroup>
       </>
