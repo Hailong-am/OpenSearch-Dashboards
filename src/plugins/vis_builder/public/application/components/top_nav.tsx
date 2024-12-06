@@ -34,7 +34,6 @@ import {
 import {
   editDraftAgg,
   saveDraftAgg,
-  setIndexPattern,
   setSavedQuery,
 } from '../utils/state_management/visualization_slice';
 import { MetadataState, setEditorState, setState } from '../utils/state_management/metadata_slice';
@@ -167,6 +166,7 @@ export const TopNav = () => {
   const preDefinedQuestions = [
     'I want to know the log number different between each month',
     'I want to know the max of monthly count for each year.',
+    'count visit number by ip only for response is success in past week',
   ];
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -177,11 +177,12 @@ export const TopNav = () => {
   const callAgent = async () => {
     setIsLoading(true);
     try {
-      const indexName = indexPattern?.title;
+      const indexName = indexPattern?.getIndex();
       if (!input || !indexName) {
         notifications.toasts.addWarning(
-          'please select index pattern and input your question first'
+          'please select index pattern and type your instruction first'
         );
+        return;
       }
 
       const parameters = {
@@ -240,8 +241,29 @@ export const TopNav = () => {
         dispatch(saveDraftAgg());
       });
 
+      data.query.timefilter.timefilter.setTime({
+        from: 'now-3y',
+        to: 'now',
+      });
+
       // filters
-      const filters = resultJson.filters;
+      const filters = resultJson.filter;
+      if (indexPattern && filters) {
+        data.query.filterManager.setFilters(filters);
+
+        if (indexPattern.isTimeBased()) {
+          const timeFieldName = indexPattern.getTimeField()!.name;
+          const filterState = filters.find(
+            (filter) => filter.range && filter.meta.key === timeFieldName
+          );
+          if (filterState) {
+            data.query.timefilter.timefilter.setTime({
+              from: filterState.meta.params.from || 'now-3y',
+              to: filterState.meta.params.to || 'now',
+            });
+          }
+        }
+      }
 
       const editorState: MetadataState = {
         editor: {
@@ -252,12 +274,32 @@ export const TopNav = () => {
         },
       };
       dispatch(setState(editorState));
+      // back to normal state to enable save button
+      dispatch(editDraftAgg());
+      notifications.toasts.addSuccess(
+        'Visualization generated, you can make adjustment and save it.',
+        {
+          toastLifeTimeMs: 1000 * 30,
+        }
+      );
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.log(error);
+      notifications.toasts.addError(error as Error, {
+        title: 'generate visualization has error',
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  useEffect(() => {
+    if (input) {
+      setIsPopoverOpen(false);
+    }
+  }, [input]);
 
   return (
     <div className="vbTopNav">
@@ -294,7 +336,7 @@ export const TopNav = () => {
                     <EuiFieldText
                       fullWidth
                       compressed
-                      placeholder="Input your question here"
+                      placeholder="Using nature language to accelerate your visualization creation"
                       value={input}
                       disabled={isLoading}
                       onFocus={() => {
@@ -313,8 +355,9 @@ export const TopNav = () => {
               }}
             >
               <EuiListGroup flush={true} maxWidth={false}>
-                {preDefinedQuestions.map((str) => (
+                {preDefinedQuestions.map((str, index) => (
                   <EuiListGroupItem
+                    key={index}
                     onClick={() => {
                       setInput(str);
                       setIsPopoverOpen(false);
