@@ -9,7 +9,6 @@ import { useParams } from 'react-router-dom';
 import { useUnmount } from 'react-use';
 import { i18n } from '@osd/i18n';
 import {
-  EuiButton,
   EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
@@ -163,11 +162,23 @@ export const TopNav = () => {
   };
   const showSaveQuery = !!capabilities['visualization-visbuilder']?.saveQuery;
 
-  const preDefinedQuestions = [
-    'I want to know the log number different between each month',
-    'I want to know the max of monthly count for each year.',
-    'count visit number by ip only for response is success in past week',
-  ];
+  const preDefinedQuestions = {
+    opensearch_dashboards_sample_data_logs: [
+      'I want to know the log number different between each month',
+      'I want to know the max of monthly count for each year.',
+      'Count visit number by ip only for success response in past week',
+    ],
+    log_index: [
+      'I want to know the log number different between each month',
+      'I want to know the max of monthly count for each year',
+      'Count visit number by ip only for success response in past week',
+    ],
+    opensearch_dashboards_sample_data_ecommerce: [
+      'I want to know order numbers by customer location',
+      'Which are the top 5 countries and cities where the orders are placed, based on the number of orders',
+    ],
+  };
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -235,6 +246,13 @@ export const TopNav = () => {
         if (aggConfig.type === 'derivative' && aggConfig.params) {
           aggConfig.params.metricAgg = 'custom';
         }
+        if (
+          aggConfig.type === 'terms' &&
+          aggConfig.schema === 'segment' &&
+          aggConfig.params.orderBy === '_key'
+        ) {
+          aggConfig.params.orderBy = 'custom';
+        }
         dispatch(editDraftAgg(aggConfig));
         dispatch(saveDraftAgg());
       });
@@ -256,8 +274,8 @@ export const TopNav = () => {
           );
           if (filterState) {
             data.query.timefilter.timefilter.setTime({
-              from: filterState.meta.params.from || 'now-3y',
-              to: filterState.meta.params.to || 'now',
+              from: filterState.meta.params.gte || 'now-3y',
+              to: filterState.meta.params.lte || 'now',
             });
           }
         }
@@ -353,7 +371,7 @@ export const TopNav = () => {
               }}
             >
               <EuiListGroup flush={true} maxWidth={false}>
-                {preDefinedQuestions.map((str, index) => (
+                {preDefinedQuestions[indexPattern?.getIndex() || '']?.map((str, index) => (
                   <EuiListGroupItem
                     key={index}
                     onClick={() => {
