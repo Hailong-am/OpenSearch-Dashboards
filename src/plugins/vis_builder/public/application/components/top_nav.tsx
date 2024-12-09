@@ -201,11 +201,10 @@ export const TopNav = () => {
       try {
         resultJson = JSON.parse(result);
       } catch {
-        notifications.toasts.addWarning('Agent response is invalid json format');
+        notifications.toasts.addWarning('Agent response with invalid json format');
         return;
       }
 
-      // mock dispatch
       const type = resultJson.type;
       // try to match with title and name
       const visualizationType = types
@@ -219,15 +218,14 @@ export const TopNav = () => {
         return;
       }
 
-      const newVisName = visualizationType.name;
       const currentVisSchemas = [];
-      const newVisSchemas = types.get(newVisName)?.ui.containerConfig.data.schemas.all ?? [];
+      const newVisSchemas = visualizationType.ui.containerConfig.data.schemas.all ?? [];
       const persistedAggParams = getPersistedAggParams([], currentVisSchemas, newVisSchemas);
 
       const newVis = {
-        name: newVisName,
+        name: visualizationType.name,
         aggConfigParams: persistedAggParams,
-        style: types.get(newVisName)?.ui.containerConfig.style.defaults,
+        style: visualizationType.ui.containerConfig.style.defaults,
       };
 
       dispatch(setActiveVisualization(newVis));
@@ -242,8 +240,8 @@ export const TopNav = () => {
       });
 
       data.query.timefilter.timefilter.setTime({
-        from: 'now-3y',
-        to: 'now',
+        from: 'Jan 1, 2021',
+        to: 'Dec 31, 2024',
       });
 
       // filters
