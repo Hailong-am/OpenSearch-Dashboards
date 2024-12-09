@@ -166,12 +166,12 @@ export const TopNav = () => {
     opensearch_dashboards_sample_data_logs: [
       'I want to know the log number different between each month',
       'I want to know the max of monthly count for each year.',
-      'Count visit number by ip only for success response in past week',
+      'I want to know weekly visit number for past 3 months',
     ],
     log_index: [
       'I want to know the log number different between each month',
       'I want to know the max of monthly count for each year',
-      'Count visit number by ip only for success response in past week',
+      'I want to know weekly visit number for past 3 months',
     ],
     opensearch_dashboards_sample_data_ecommerce: [
       'I want to know order numbers by customer location',
@@ -301,7 +301,7 @@ export const TopNav = () => {
       notifications.toasts.addSuccess(
         'Visualization generated, you can make adjustment and save it.',
         {
-          toastLifeTimeMs: 1000 * 30,
+          toastLifeTimeMs: 1000 * 10,
         }
       );
     } catch (error) {
