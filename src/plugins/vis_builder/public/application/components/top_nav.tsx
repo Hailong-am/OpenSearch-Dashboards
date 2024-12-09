@@ -265,6 +265,12 @@ export const TopNav = () => {
       // filters
       const filters = resultJson.filter;
       if (indexPattern && filters) {
+        filters.forEach((filter) => {
+          if (filter.meta) {
+            // we don't need this indexRefName
+            delete filter.meta.indexRefName;
+          }
+        });
         data.query.filterManager.setFilters(filters);
 
         if (indexPattern.isTimeBased()) {
