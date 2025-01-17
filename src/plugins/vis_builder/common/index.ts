@@ -4,7 +4,7 @@
  */
 
 export const PLUGIN_ID = 'vis-builder';
-export const PLUGIN_NAME = 'VisBuilder';
+export const PLUGIN_NAME = 'VisBuilder(AI)';
 export const VISUALIZE_ID = 'visualize';
 export const EDIT_PATH = '/edit';
 export const VIS_BUILDER_CHART_TYPE = 'VisBuilder';

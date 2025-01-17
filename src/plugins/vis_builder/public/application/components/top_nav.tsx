@@ -164,27 +164,32 @@ export const TopNav = () => {
 
   const preDefinedQuestions = {
     opensearch_dashboards_sample_data_logs: [
-      'I want to know the log number different between each month',
+      'I want to know the log number difference between each month',
       'I want to know the max of monthly count for each year.',
-      'I want to know weekly visit number for past 3 months',
+      'I want to know weekly visit number by different OS type for past 3 months',
     ],
     log_index: [
-      'I want to know the log number different between each month',
+      'I want to know the log number difference between each month',
       'I want to know the max of monthly count for each year',
-      'I want to know weekly visit number for past 3 months',
+      'I want to know weekly visit number by different OS type and host for past month',
+      'I want to know log count for each year for each response code and tags',
     ],
     opensearch_dashboards_sample_data_ecommerce: [
       'I want to know order numbers by customer location',
-      'Which are the top 5 countries and cities where the orders are placed, based on the number of orders',
+      'Which are the top 5 countries where the orders are placed, based on the number of orders',
     ],
   };
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  useEffect(() => {
+    setInput('');
+  }, [indexPattern]);
 
   const assistant = getAssistantDashboards();
   // const agentId = 'fB9Xi5MBoE1KrU6uQY14';
-  const agentId = '2626mZMBPoefxyBk9lbu';
+  // const agentId = '2626mZMBPoefxyBk9lbu'; // demo
+  const agentId = 'k649q5MBPoefxyBkOw9L'; // experimental
   const callAgent = async () => {
     setIsLoading(true);
     try {
@@ -206,11 +211,11 @@ export const TopNav = () => {
 
       const result = agentResponse.body.inference_results[0].output[0].result;
 
-      // eslint-disable-next-line no-console
-      console.log('agent result' + JSON.stringify(result));
       let resultJson: any;
       try {
         resultJson = JSON.parse(result);
+        // eslint-disable-next-line no-console
+        console.log('agent result' + JSON.stringify(resultJson));
       } catch {
         notifications.toasts.addWarning('Agent response with invalid json format');
         return;
