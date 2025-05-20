@@ -4,6 +4,8 @@
  */
 
 import { AppCategory } from 'opensearch-dashboards/public';
+import Fuse from 'fuse.js';
+// import { DataArray, pipeline } from '@xenova/transformers';
 import { ChromeNavLink } from './nav_links';
 import { ChromeRegistrationNavLink, NavGroupItemInMap } from './nav_group';
 import { NavGroupStatus } from '../../../core/types';
@@ -240,12 +242,12 @@ export function setIsCategoryOpen(id: string, isOpen: boolean, storage: Storage)
   storage.setItem(getCategoryLocalStorageKey(id), `${isOpen}`);
 }
 
-export function searchNavigationLinks(
+export async function searchNavigationLinks(
   allAvailableCaseId: string[],
   navGroupMap: Record<string, NavGroupItemInMap>,
   query: string
 ) {
-  return allAvailableCaseId.flatMap((useCaseId) => {
+  const allSearchAbleLinks = allAvailableCaseId.flatMap((useCaseId) => {
     const navGroup = navGroupMap[useCaseId];
     if (!navGroup) return [];
 
@@ -255,7 +257,9 @@ export function searchNavigationLinks(
 
     return links
       .filter((link) => {
-        const title = link.title;
+        return !link.hidden && !link.disabled && !parentNavLinkIds.includes(link.id);
+      })
+      .map((link) => {
         let parentNavLinkTitle;
         // parent title also taken into consideration for search its sub items
         if (link.parentNavLinkId) {
@@ -263,19 +267,68 @@ export function searchNavigationLinks(
             (navLink) => navLink.id === link.parentNavLinkId
           )?.title;
         }
-        const titleMatch = title && title.toLowerCase().includes(query.toLowerCase());
-        const parentTitleMatch =
-          parentNavLinkTitle && parentNavLinkTitle.toLowerCase().includes(query.toLowerCase());
-        return (
-          !link.hidden &&
-          !link.disabled &&
-          (titleMatch || parentTitleMatch) &&
-          !parentNavLinkIds.includes(link.id)
-        );
-      })
-      .map((link) => ({
-        ...link,
-        navGroup,
-      }));
+        return {
+          ...link,
+          parentNavLinkTitle,
+          navGroup,
+        };
+      });
   });
+
+  const options = {
+    includeScore: true,
+    minMatchCharLength: 2,
+    threshold: 0.5,
+    distance: 800,
+    includeMatches: true,
+    ignoreFieldNorm: true,
+    ignoreLocation: true,
+    keys: ['title', 'parentNavLinkTitle'],
+  };
+
+  const fuse = new Fuse(allSearchAbleLinks, options);
+  const fuzzySearchResult = fuse.search(query).map((result) => result.item);
+  // const linksWithDesc = allSearchAbleLinks.filter((link) => !!link.description);
+  // const semanticSearchResult = (await semanticSearch(query, linksWithDesc)).map((result) => {
+  //   const { embedding, score, ...link } = result;
+  //   return link;
+  // });
+
+  // return [...fuzzySearchResult, ...semanticSearchResult];
+  return fuzzySearchResult;
 }
+
+// Main search function
+// async function semanticSearch(
+//   query: string,
+//   documents: Array<ChromeRegistrationNavLink & ChromeNavLink>
+// ) {
+//   const extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+
+//   const docEmbeddings = await Promise.all(
+//     documents.map(async (doc) => {
+//       const output = await extractor(doc.description || '', { pooling: 'mean', normalize: true });
+//       return { ...doc, embedding: output.data };
+//     })
+//   );
+
+//   const queryEmbedding = (await extractor(query, { pooling: 'mean', normalize: true })).data;
+
+//   const scored = docEmbeddings.map((doc) => ({
+//     ...doc,
+//     score: cosineSimilarity(queryEmbedding, doc.embedding),
+//   }));
+
+//   scored.sort((a, b) => b.score - a.score);
+
+//   console.log('\n🎯 Top Results:');
+//   return scored.slice(0, 3);
+// }
+
+// // Cosine similarity function
+// function cosineSimilarity(a: DataArray[], b: DataArray[]) {
+//   const dot = a.reduce((sum, val, i) => sum + val * b[i], 0);
+//   const magA = Math.sqrt(a.reduce((sum, val) => sum + val ** 2, 0));
+//   const magB = Math.sqrt(b.reduce((sum, val) => sum + val ** 2, 0));
+//   return dot / (magA * magB);
+// }
