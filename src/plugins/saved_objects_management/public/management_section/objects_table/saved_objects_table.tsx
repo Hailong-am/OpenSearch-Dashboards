@@ -109,7 +109,7 @@ import { DataPublicPluginStart } from '../../../../../plugins/data/public';
 import { DuplicateObject } from '../types';
 import { formatWorkspaceIdParams } from '../../utils';
 import { NavigationPublicPluginStart } from '../../../../navigation/public';
-import { WorkspaceObject } from '../../../../../core/public';
+import { WorkspaceObject, DEFAULT_WORKSPACE_ID } from '../../../../../core/public';
 interface ExportAllOption {
   id: string;
   label: string;
@@ -1209,7 +1209,9 @@ export class SavedObjectsTable extends Component<SavedObjectsTableProps, SavedOb
         <Header
           onExportAll={() => this.setState({ isShowingExportAllOptionsModal: true })}
           onImport={this.showImportFlyout}
-          showDuplicateAll={this.state.workspaceEnabled}
+          showDuplicateAll={
+            this.state.workspaceEnabled && currentWorkspace?.id !== DEFAULT_WORKSPACE_ID
+          }
           onDuplicate={this.onDuplicateAll}
           onRefresh={this.refreshObjects}
           objectCount={savedObjects.length}

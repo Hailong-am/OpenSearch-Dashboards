@@ -423,7 +423,7 @@ export async function createSingleDataSource(
   savedObjectsClient: SavedObjectsClientContract,
   attributes: DataSourceAttributes
 ) {
-  return savedObjectsClient.create('data-source', attributes);
+  return savedObjectsClient.create('data-source', attributes, { workspaces: undefined });
 }
 
 export async function updateDataSourceById(

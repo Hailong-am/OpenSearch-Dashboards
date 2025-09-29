@@ -22,6 +22,7 @@ import {
 } from '../../../../core/server';
 import { IWorkspaceClientImpl } from '../types';
 import { validateIsWorkspaceDataSourceAndConnectionObjectType } from '../../common/utils';
+import { ConfigSchema } from '../../config';
 
 const UI_SETTINGS_SAVED_OBJECTS_TYPE = 'config';
 
@@ -68,6 +69,9 @@ export class WorkspaceIdConsumerWrapper {
 
   private isConfigType(type: string): boolean {
     return type === UI_SETTINGS_SAVED_OBJECTS_TYPE;
+  }
+  private isDataSource(type: string | string[]): boolean {
+    return type === 'data-source' || type.indexOf('data-source') >= 0;
   }
 
   private async checkWorkspacesExist(
@@ -150,7 +154,10 @@ export class WorkspaceIdConsumerWrapper {
     return {
       ...wrapperOptions.client,
       create: async <T>(type: string, attributes: T, options: SavedObjectsCreateOptions = {}) => {
-        const finalOptions = this.isConfigType(type)
+        const useOriginalOptions = this.workspaceConfig.single_default_workspace
+          ? this.isConfigType(type) || this.isDataSource(type)
+          : this.isConfigType(type);
+        const finalOptions = useOriginalOptions
           ? options
           : this.formatWorkspaceIdParams(wrapperOptions.request, options);
         await this.checkWorkspacesExist(finalOptions?.workspaces, wrapperOptions);
@@ -177,10 +184,13 @@ export class WorkspaceIdConsumerWrapper {
         // Based on https://github.com/opensearch-project/OpenSearch-Dashboards/blob/main/src/core/server/ui_settings/create_or_upgrade_saved_config/get_upgradeable_config.ts#L49
         // we need to make sure the find call for upgrade config should be able to find all the global configs as it was before.
         // It is a workaround for 2.17, should be optimized in the upcoming 2.18 release.
-        const finalOptions =
-          this.isConfigType(options.type as string) && options.sortField === 'buildNum'
-            ? options
-            : this.formatWorkspaceIdParams(wrapperOptions.request, options);
+        const useOriginalOptions = this.workspaceConfig.single_default_workspace
+          ? (this.isConfigType(options.type as string) && options.sortField === 'buildNum') ||
+            this.isDataSource(options.type)
+          : this.isConfigType(options.type as string) && options.sortField === 'buildNum';
+        const finalOptions = useOriginalOptions
+          ? options
+          : this.formatWorkspaceIdParams(wrapperOptions.request, options);
         await this.checkWorkspacesExist(finalOptions?.workspaces, wrapperOptions);
         return wrapperOptions.client.find(finalOptions);
       },
@@ -247,7 +257,11 @@ export class WorkspaceIdConsumerWrapper {
     };
   };
 
-  constructor(private readonly workspaceClient: IWorkspaceClientImpl, logger: Logger) {
+  constructor(
+    private readonly workspaceClient: IWorkspaceClientImpl,
+    logger: Logger,
+    private readonly workspaceConfig: ConfigSchema
+  ) {
     this.logger = logger;
   }
 }

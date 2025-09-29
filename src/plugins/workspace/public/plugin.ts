@@ -22,6 +22,7 @@ import {
   DEFAULT_NAV_GROUPS,
   NavGroupType,
   ALL_USE_CASE_ID,
+  PluginInitializerContext,
 } from 'opensearch-dashboards/public';
 import { getWorkspaceIdFromUrl } from 'opensearch-dashboards/public/utils';
 import {
@@ -34,6 +35,7 @@ import {
   WORKSPACE_COLLABORATORS_APP_ID,
 } from '../common/constants';
 import { Services, WorkspaceUseCase, WorkspacePluginSetup } from './types';
+import { ConfigSchema } from '../config';
 import { WorkspaceClient } from './workspace_client';
 import { SavedObjectsManagementPluginSetup } from '../../../plugins/saved_objects_management/public';
 import { ManagementSetup } from '../../../plugins/management/public';
@@ -94,6 +96,7 @@ export interface WorkspacePluginStartDeps {
 
 export class WorkspacePlugin
   implements Plugin<WorkspacePluginSetup, {}, WorkspacePluginSetupDeps, WorkspacePluginStartDeps> {
+  private readonly config: ConfigSchema;
   private coreStart?: CoreStart;
   private currentWorkspaceSubscription?: Subscription;
   private breadcrumbsSubscription?: Subscription;
@@ -109,6 +112,10 @@ export class WorkspacePlugin
   private workspaceValidationService = new WorkspaceValidationService();
   private collaboratorTypes = new WorkspaceCollaboratorTypesService();
   private collaboratorsAppUpdater$ = new BehaviorSubject<AppUpdater>(() => undefined);
+
+  constructor(initializerContext: PluginInitializerContext<ConfigSchema>) {
+    this.config = initializerContext.config.get();
+  }
 
   private _changeSavedObjectCurrentWorkspace() {
     if (this.coreStart) {
@@ -293,7 +300,7 @@ export class WorkspacePlugin
       core.http.basePath.getBasePath()
     );
 
-    await this.workspaceValidationService.setup(core, workspaceId);
+    await this.workspaceValidationService.setup(core, workspaceId, this.config);
 
     const mountWorkspaceApp = async (params: AppMountParameters, renderApp: WorkspaceAppType) => {
       const [coreStart, { navigation }] = await core.getStartServices();
@@ -346,7 +353,9 @@ export class WorkspacePlugin
         defaultMessage: 'Workspace Detail',
       }),
       navLinkStatus: core.chrome.navGroup.getNavGroupEnabled()
-        ? AppNavLinkStatus.visible
+        ? this.config.single_default_workspace
+          ? AppNavLinkStatus.hidden
+          : AppNavLinkStatus.visible
         : AppNavLinkStatus.hidden,
       async mount(params: AppMountParameters) {
         const { renderDetailApp } = await import('./application');
@@ -373,6 +382,7 @@ export class WorkspacePlugin
     });
 
     // workspace initial page
+    const singleDefaultWorkspace = this.config.single_default_workspace;
     core.application.register({
       id: WORKSPACE_INITIAL_APP_ID,
       title: i18n.translate('workspace.settings.workspaceInitial', {
@@ -381,10 +391,21 @@ export class WorkspacePlugin
       navLinkStatus: AppNavLinkStatus.hidden,
       chromeless: true,
       async mount(params: AppMountParameters) {
-        const { renderInitialApp } = await import('./application');
-        return mountWorkspaceApp(params, renderInitialApp);
+        const [coreStart] = await core.getStartServices();
+        const { application } = coreStart;
+
+        if (singleDefaultWorkspace) {
+          application.navigateToApp(ANALYTICS_ALL_OVERVIEW_PAGE_ID);
+        } else {
+          const { renderInitialApp } = await import('./application');
+          return mountWorkspaceApp(params, renderInitialApp);
+        }
+
+        return () => {};
       },
-      workspaceAvailability: WorkspaceAvailability.outsideWorkspace,
+      workspaceAvailability: singleDefaultWorkspace
+        ? WorkspaceAvailability.insideWorkspace
+        : WorkspaceAvailability.outsideWorkspace,
     });
 
     const registeredUseCases$ = this.registeredUseCases$;
@@ -423,7 +444,9 @@ export class WorkspacePlugin
        * after nav group enabled changed.
        */
       navLinkStatus: core.chrome.navGroup.getNavGroupEnabled()
-        ? AppNavLinkStatus.visible
+        ? this.config.single_default_workspace
+          ? AppNavLinkStatus.hidden
+          : AppNavLinkStatus.visible
         : AppNavLinkStatus.hidden,
       description: i18n.translate('workspace.workspaceList.description', {
         defaultMessage: 'Organize collaborative projects in use-case-specific workspaces.',
@@ -538,7 +561,7 @@ export class WorkspacePlugin
         workspaceSearchPages(query, this.registeredUseCases$, this.coreStart, callback),
     });
 
-    if (workspaceId) {
+    if (workspaceId && !this.config.single_default_workspace) {
       core.chrome.registerCollapsibleNavHeader(() => {
         if (!this.coreStart) {
           return null;
@@ -600,21 +623,23 @@ export class WorkspacePlugin
     if (!core.chrome.navGroup.getNavGroupEnabled()) {
       this.addWorkspaceToBreadcrumbs(core);
     } else {
-      /**
-       * Register workspace dropdown selector on the left navigation bottom
-       */
-      core.chrome.navControls.registerLeftBottom({
-        order: 2,
-        mount: toMountPoint(
-          React.createElement(WorkspaceMenu, {
-            coreStart: core,
-            registeredUseCases$: this.registeredUseCases$,
-          })
-        ),
-      });
+      if (!this.config.single_default_workspace) {
+        /**
+         * Register workspace dropdown selector on the left navigation bottom
+         */
+        core.chrome.navControls.registerLeftBottom({
+          order: 2,
+          mount: toMountPoint(
+            React.createElement(WorkspaceMenu, {
+              coreStart: core,
+              registeredUseCases$: this.registeredUseCases$,
+            })
+          ),
+        });
 
-      // register workspace list in home page
-      this.registerWorkspaceListToHome(core, contentManagement);
+        // register workspace list in home page
+        this.registerWorkspaceListToHome(core, contentManagement);
+      }
 
       // register workspace list to user settings page
       this.registerWorkspaceListToUserSettings(core, contentManagement, navigation);

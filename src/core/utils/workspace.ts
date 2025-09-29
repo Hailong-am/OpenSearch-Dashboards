@@ -3,7 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { WORKSPACE_PATH_PREFIX, WORKSPACE_USE_CASE_PREFIX } from './constants';
+import {
+  DEFAULT_WORKSPACE_ID,
+  WORKSPACE_PATH_PREFIX,
+  WORKSPACE_USE_CASE_PREFIX,
+} from './constants';
 import { IBasePath } from '../public';
 
 export const getWorkspaceIdFromUrl = (url: string, basePath: string): string => {
@@ -35,7 +39,8 @@ export const formatUrlWithWorkspaceId = (
     withoutClientBasePath: urlWithoutClientBasePath,
   });
 
-  if (workspaceId) {
+  // for single default workspace, we hide the workspace info in URL
+  if (workspaceId && workspaceId !== DEFAULT_WORKSPACE_ID) {
     newUrl.pathname = `${WORKSPACE_PATH_PREFIX}/${workspaceId}${newUrl.pathname}`;
   } else {
     newUrl.pathname = cleanWorkspaceId(newUrl.pathname);

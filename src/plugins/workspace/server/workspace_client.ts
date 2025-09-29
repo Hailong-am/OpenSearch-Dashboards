@@ -15,6 +15,7 @@ import {
   Logger,
   WorkspaceFindOptions,
   SavedObjectsErrorHelpers,
+  DEFAULT_WORKSPACE_ID,
 } from '../../../core/server';
 import { updateWorkspaceState, getWorkspaceState } from '../../../core/server/utils';
 import {
@@ -47,6 +48,7 @@ const WORKSPACE_NOT_FOUND_ERROR = i18n.translate('workspace.notFound.error', {
 
 interface ConfigType {
   maximum_workspaces?: ConfigSchema['maximum_workspaces'];
+  single_default_workspace?: ConfigSchema['single_default_workspace'];
 }
 
 export class WorkspaceClient implements IWorkspaceClientImpl {
@@ -120,9 +122,18 @@ export class WorkspaceClient implements IWorkspaceClientImpl {
   ): ReturnType<IWorkspaceClientImpl['create']> {
     try {
       const { permissions, dataSources, dataConnections, ...attributes } = payload;
-      const id = generateRandomId(WORKSPACE_ID_SIZE);
-      const client = this.getSavedObjectClientsFromRequestDetail(requestDetail);
+      let id = generateRandomId(WORKSPACE_ID_SIZE);
+      if (this.config?.single_default_workspace) {
+        id = DEFAULT_WORKSPACE_ID;
+      }
+      const client = this.config?.single_default_workspace
+        ? this.getScopedClientWithoutPermission(requestDetail)
+        : this.getSavedObjectClientsFromRequestDetail(requestDetail);
       const clientWithoutPermission = this.getScopedClientWithoutPermission(requestDetail);
+
+      if (!client) {
+        throw new Error('Unable to get saved objects client');
+      }
       const existingWorkspaceRes = await clientWithoutPermission?.find({
         type: WORKSPACE_TYPE,
         search: `"${attributes.name}"`,

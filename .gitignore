@@ -57,6 +57,8 @@ npm-debug.log*
 .ci/bash_standard_lib.sh
 .gradle
 packages/osd-optimizer/limits_delta.yml
+.antlr/
+.kiro/
 
 # apm plugin
 apm.tsconfig.json

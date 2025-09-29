@@ -389,6 +389,13 @@ export class ChromeNavGroupService {
           // as workspace plugin will register a filter to only make the selected nav group visible.
           // In order to tell which nav group we are in, we should use the only visible use case if the visibleUseCases.length equals 1.
           visibleUseCases.forEach((navGroup) => mapAppIdToNavGroup(navGroup));
+
+          // put system nav group
+          Object.values(navGroupMap)
+            .filter((navGroup) => !!navGroup.type)
+            .forEach((navGroup) => {
+              mapAppIdToNavGroup(navGroup);
+            });
         } else {
           Object.values(navGroupMap).forEach((navGroup) => {
             // Nav group of Hidden status should be filtered out when counting navGroups the currentApp belongs to

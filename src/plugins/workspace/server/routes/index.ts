@@ -11,6 +11,7 @@ import {
   ACL,
   DEFAULT_NAV_GROUPS,
   WorkspacePermissionMode,
+  DEFAULT_WORKSPACE_ID,
 } from '../../../../core/server';
 import {
   MAX_WORKSPACE_NAME_LENGTH,
@@ -22,6 +23,7 @@ import { registerDuplicateRoute } from './duplicate';
 import { transferCurrentUserInPermissions, translatePermissionsToRole } from '../utils';
 import { validateWorkspaceColor } from '../../common/utils';
 import { getUseCaseFeatureConfig } from '../../../../core/server';
+import { ConfigSchema } from '../../config';
 
 export const WORKSPACES_API_BASE_URL = '/api/workspaces';
 
@@ -121,6 +123,7 @@ export function registerRoutes({
   permissionControlClient,
   isPermissionControlEnabled,
   isDataSourceEnabled,
+  workspaceConfig,
 }: {
   client: IWorkspaceClientImpl;
   logger: Logger;
@@ -129,6 +132,7 @@ export function registerRoutes({
   permissionControlClient?: SavedObjectsPermissionControlContract;
   isPermissionControlEnabled: boolean;
   isDataSourceEnabled: boolean;
+  workspaceConfig: ConfigSchema;
 }) {
   router.post(
     {
@@ -155,7 +159,78 @@ export function registerRoutes({
       if (!result.success) {
         return res.ok({ body: result });
       }
-      const { workspaces } = result.result;
+      let { workspaces } = result.result;
+
+      // Check if default workspace exists, if not create it
+      let hasDefaultWorkspace = true;
+      if (workspaceConfig.single_default_workspace) {
+        // do the actual check
+        hasDefaultWorkspace = workspaces.some((workspace) => workspace.id === DEFAULT_WORKSPACE_ID);
+      } else {
+        // remove default workspace if it exists
+        workspaces = workspaces.filter((workspace) => workspace.id !== DEFAULT_WORKSPACE_ID);
+      }
+
+      if (!hasDefaultWorkspace) {
+        logger.info('Default workspace not found, creating it automatically');
+
+        // Create open permissions (everyone can read and write)
+        const openPermissions = isPermissionControlEnabled
+          ? {
+              [WorkspacePermissionMode.LibraryRead]: {
+                users: ['*'],
+                groups: ['*'],
+              },
+              [WorkspacePermissionMode.LibraryWrite]: {
+                users: ['*'],
+                groups: ['*'],
+              },
+            }
+          : undefined;
+
+        const defaultWorkspacePayload: Omit<WorkspaceAttributeWithPermission, 'id'> = {
+          name: 'Pulsar',
+          description: 'Default workspace for Pulsar',
+          features: [getUseCaseFeatureConfig(DEFAULT_NAV_GROUPS.all.id)],
+          permissions: openPermissions,
+          reserved: true,
+        };
+
+        try {
+          const createResult = await client.create(
+            {
+              request: req,
+            },
+            defaultWorkspacePayload
+          );
+
+          if (createResult.success) {
+            logger.info(
+              `Default workspace created successfully with ID: ${createResult.result.id}`
+            );
+
+            // Refresh the workspace list to include the newly created default workspace
+            const refreshedResult = await client.list(
+              {
+                request: req,
+              },
+              req.body
+            );
+
+            if (refreshedResult.success) {
+              workspaces = refreshedResult.result.workspaces;
+            }
+          } else {
+            logger.error(
+              `Failed to create default workspace: ${
+                createResult.success === false ? createResult.error : 'Unknown error'
+              }`
+            );
+          }
+        } catch (error) {
+          logger.error(`Error creating default workspace: ${error}`);
+        }
+      }
 
       // enrich workspace permissionMode
       const principals = permissionControlClient?.getPrincipalsFromRequest(req);
@@ -169,7 +244,7 @@ export function registerRoutes({
       });
 
       return res.ok({
-        body: result,
+        body: result.success ? { ...result, result: { ...result.result, workspaces } } : result,
       });
     })
   );

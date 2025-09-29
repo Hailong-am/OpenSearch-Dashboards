@@ -13,9 +13,11 @@ import {
   ChromeStart,
   CoreSetup,
   CoreStart,
+  DEFAULT_WORKSPACE_ID,
   WorkspaceError,
 } from '../../../../core/public';
 import { WorkspaceClient } from '../workspace_client';
+import { ConfigSchema } from '../../config';
 
 /**
  * A service to validate workspace entering state by handle triggered workspace errors.
@@ -42,16 +44,25 @@ export class WorkspaceValidationService {
     });
   }
 
-  async setup(core: CoreSetup, workspaceId: string) {
-    this.workspaceId = workspaceId;
-
+  async setup(core: CoreSetup, workspaceId: string, config: ConfigSchema) {
     const workspaceClient = new WorkspaceClient(core.http, core.workspaces);
     await workspaceClient.init();
     core.workspaces.setClient(workspaceClient);
     this.workspaceClient = workspaceClient;
 
-    if (workspaceId) {
-      await this.workspaceClient.enterWorkspace(workspaceId);
+    let finalWorkspaceId = workspaceId;
+
+    const workspaceList = core.workspaces.workspaceList$.getValue();
+    if (
+      workspaceList.some((workspace) => workspace.id === DEFAULT_WORKSPACE_ID) &&
+      config.single_default_workspace
+    ) {
+      finalWorkspaceId = DEFAULT_WORKSPACE_ID;
+    }
+
+    if (finalWorkspaceId) {
+      this.workspaceId = finalWorkspaceId;
+      await this.workspaceClient.enterWorkspace(finalWorkspaceId);
     }
   }
 

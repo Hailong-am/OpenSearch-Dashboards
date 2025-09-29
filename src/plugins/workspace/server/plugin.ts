@@ -56,6 +56,7 @@ import { uiSettings } from './ui_settings';
 import { RepositoryWrapper } from './saved_objects/repository_wrapper';
 import { DataSourcePluginSetup } from '../../data_source/server';
 import { ConfigSchema } from '../config';
+import { DEFAULT_WORKSPACE_ID } from '../../../core/server';
 
 export interface WorkspacePluginDependencies {
   dataSource: DataSourcePluginSetup;
@@ -72,15 +73,19 @@ export class WorkspacePlugin implements Plugin<WorkspacePluginSetup, WorkspacePl
   private workspaceConfig$: Observable<ConfigSchema>;
   private env: PluginInitializerContext['env'];
 
-  private proxyWorkspaceTrafficToRealHandler(setupDeps: CoreSetup) {
+  private proxyWorkspaceTrafficToRealHandler(setupDeps: CoreSetup, workspaceConfig: ConfigSchema) {
     /**
      * Proxy all {basePath}/w/{workspaceId}{osdPath*} paths to {basePath}{osdPath*}
      */
     setupDeps.http.registerOnPreRouting(async (request, response, toolkit) => {
-      const workspaceId = getWorkspaceIdFromUrl(
+      let workspaceId = getWorkspaceIdFromUrl(
         request.url.toString(),
         '' // No need to pass basePath here because the request.url will be rewrite by registerOnPreRouting method in `src/core/server/http/http_server.ts`
       );
+
+      if (workspaceConfig.single_default_workspace) {
+        workspaceId = DEFAULT_WORKSPACE_ID;
+      }
 
       if (workspaceId) {
         updateWorkspaceState(request, {
@@ -234,6 +239,7 @@ export class WorkspacePlugin implements Plugin<WorkspacePluginSetup, WorkspacePl
 
     this.client = new WorkspaceClient(core, this.logger, {
       maximum_workspaces: workspaceConfig.maximum_workspaces,
+      single_default_workspace: workspaceConfig.single_default_workspace,
     });
 
     await this.client.setup(core);
@@ -245,7 +251,7 @@ export class WorkspacePlugin implements Plugin<WorkspacePluginSetup, WorkspacePl
       WORKSPACE_CONFLICT_CONTROL_SAVED_OBJECTS_CLIENT_WRAPPER_ID,
       this.workspaceConflictControl.wrapperFactory
     );
-    this.proxyWorkspaceTrafficToRealHandler(core);
+    this.proxyWorkspaceTrafficToRealHandler(core, workspaceConfig);
 
     const workspaceUiSettingsClientWrapper = new WorkspaceUiSettingsClientWrapper(
       this.logger,
@@ -261,7 +267,7 @@ export class WorkspacePlugin implements Plugin<WorkspacePluginSetup, WorkspacePl
     core.savedObjects.addClientWrapper(
       PRIORITY_FOR_WORKSPACE_ID_CONSUMER_WRAPPER,
       WORKSPACE_ID_CONSUMER_WRAPPER_ID,
-      new WorkspaceIdConsumerWrapper(this.client, this.logger).wrapperFactory
+      new WorkspaceIdConsumerWrapper(this.client, this.logger, workspaceConfig).wrapperFactory
     );
 
     const maxImportExportSize = core.savedObjects.getImportExportObjectLimit();
@@ -277,6 +283,7 @@ export class WorkspacePlugin implements Plugin<WorkspacePluginSetup, WorkspacePl
       permissionControlClient: this.permissionControl,
       isPermissionControlEnabled,
       isDataSourceEnabled,
+      workspaceConfig,
     });
 
     core.capabilities.registerProvider(() => ({

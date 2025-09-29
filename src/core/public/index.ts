@@ -111,6 +111,7 @@ export { CoreContext, CoreSystem } from './core_system';
 export {
   DEFAULT_APP_CATEGORIES,
   WORKSPACE_TYPE,
+  DEFAULT_WORKSPACE_ID,
   WORKSPACE_USE_CASE_PREFIX,
   cleanWorkspaceId,
   isNavGroupInFeatureConfigs,
