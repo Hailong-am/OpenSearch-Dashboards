@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useMemo, useCallback } from 'react';
-import { CoreStart } from '../../../../core/public';
+import React, { useMemo, useCallback } from 'react';
+import { CoreStart, HttpSetup } from '../../../../core/public';
 import { OpenSearchDashboardsContextProvider } from '../../../opensearch_dashboards_react/public';
 import { TextSelectionMonitor } from '../../../context_provider/public';
 
@@ -16,6 +16,7 @@ import { ContextProviderStart } from '../../../context_provider/public';
 import { SuggestedActionsService } from '../services/suggested_action';
 import { ConfirmationService } from '../services/confirmation_service';
 import { GlobalAssistantProvider } from '../../../context_provider/public';
+import { useVisualizeDataAction } from '../actions/visualize_data_action';
 
 import './chat_mount.scss';
 
@@ -27,6 +28,12 @@ interface ChatMountProps {
   suggestedActionsService: SuggestedActionsService;
   confirmationService: ConfirmationService;
 }
+
+/** Registers client-side assistant actions inside GlobalAssistantProvider. */
+const ChatActionsRegistrar: React.FC<{ http: HttpSetup }> = ({ http }) => {
+  useVisualizeDataAction(http);
+  return null;
+};
 
 export const ChatMount = ({
   core,
@@ -61,6 +68,7 @@ export const ChatMount = ({
         <div className="chatMount__content">
           <OpenSearchDashboardsContextProvider services={services}>
             <GlobalAssistantProvider onToolsUpdated={handleToolsUpdated}>
+              <ChatActionsRegistrar http={core.http} />
               <ChatProvider
                 chatService={chatService}
                 suggestedActionsService={suggestedActionsService}
