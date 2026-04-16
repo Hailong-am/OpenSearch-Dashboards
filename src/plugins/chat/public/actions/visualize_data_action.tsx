@@ -17,7 +17,7 @@ interface VisualizeDataArgs {
   title?: string;
   xField?: string;
   yField?: string;
-  dataSourceId?: string;
+  datasourceId?: string;
 }
 
 type ChartData = Array<Record<string, any>>;
@@ -159,7 +159,7 @@ export function useVisualizeDataAction(http: HttpSetup, enabled: boolean = true)
     handler: async (args) => {
       try {
         let response: any;
-        const dsQuery = args.dataSourceId ? { dataSourceId: args.dataSourceId } : {};
+        const dsQuery = args.datasourceId ? { dataSourceId: args.datasourceId } : {};
         if (args.queryType === 'ppl') {
           response = await http.post('/api/console/proxy', {
             query: { path: '/_plugins/_ppl', method: 'POST', ...dsQuery },
